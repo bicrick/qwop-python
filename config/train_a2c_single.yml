@@ -1,0 +1,45 @@
+# A2C Training Configuration - Single Process
+# Use this config for testing or on systems with multiprocessing issues
+# Slower than parallel training but more stable
+
+# Algorithm and training duration
+algorithm: A2C
+total_timesteps: 1_000_000  # Reduced for testing
+n_envs: 1                   # Single environment (no multiprocessing)
+max_episode_steps: 1000
+
+# Environment configuration
+env_kwargs:
+  frames_per_step: 4
+  reduced_action_set: true
+  failure_cost: 10.0
+  success_reward: 50.0
+  time_cost_mult: 10.0
+
+# A2C hyperparameters
+learner_kwargs:
+  n_steps: 5
+  gamma: 0.99
+  gae_lambda: 1.0
+  ent_coef: 0.0
+  vf_coef: 0.5
+  max_grad_norm: 0.5
+  rms_prop_eps: 0.00001
+  use_rms_prop: true
+  use_sde: false
+  sde_sample_freq: -1
+  normalize_advantage: false
+  stats_window_size: 100
+  learning_rate: 0.0007
+  policy_kwargs:
+    net_arch: [256, 256]
+
+# Checkpointing
+save_freq: 50_000
+checkpoint_dir: data/checkpoints
+model_dir: data/models
+
+# Logging
+log_dir: data/logs
+tensorboard: true
+user_metrics_log_interval: 1
