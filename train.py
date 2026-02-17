@@ -262,6 +262,25 @@ def train(config_path, run_id='default', resume_from=None):
     log_interval = config.get('user_metrics_log_interval', 1)
     callbacks.append(LogCallback(log_interval=log_interval))
 
+    # DQNfD demo injection (for QRDQN/DQN only)
+    demo_file = config.get("demo_file")
+    demo_injection_ratio = config.get("demo_injection_ratio", 0.5)
+    if demo_file and demo_injection_ratio and algo_name in ("QRDQN", "DQN"):
+        if not os.path.exists(demo_file):
+            raise FileNotFoundError(f"DQNfD demo_file not found: {demo_file}")
+        from callbacks import DQNfDCallback
+
+        callbacks.append(
+            DQNfDCallback(
+                demo_file=demo_file,
+                injection_ratio=demo_injection_ratio,
+                verbose=1,
+            )
+        )
+        print(f"DQNfD enabled: injecting demos from {demo_file} at ratio {demo_injection_ratio}")
+    elif demo_file and algo_name not in ("QRDQN", "DQN"):
+        print(f"Warning: demo_file specified but {algo_name} has no replay buffer; ignoring")
+
     callback_list = CallbackList(callbacks)
     
     # Train
