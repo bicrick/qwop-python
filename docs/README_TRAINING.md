@@ -20,53 +20,48 @@ python3 -c "import sys; sys.path.insert(0, 'src'); from qwop_env import QWOPEnv;
 ### Training (Recommended: Single Process)
 
 ```bash
-# Simple training script (100k timesteps, ~2 minutes)
-python3 train_simple.py
+# Single process training (stable on all platforms including macOS)
+python3 train.py --config config/train_qrdqn_single.yml
 ```
 
 This will:
 - Create a QWOP environment in headless mode
-- Train QRDQN for 100k timesteps
-- Save model to `qwop_simple_model.zip`
+- Train QRDQN (default: 1M timesteps)
+- Save model to `data/models/QRDQN_<run_id>_<timestamp>/final_model.zip`
 
 ### Evaluation
 
 ```bash
 # Evaluate trained model
-python3 evaluate.py --model qwop_simple_model.zip --episodes 50
+python3 evaluate.py --model data/models/QRDQN_*/final_model.zip --episodes 50
 ```
 
 ## Training Options
 
-### Option 1: Simple Training (Recommended for Testing)
+### Option 1: Single Process (Recommended for Testing)
 
-**File**: `train_simple.py`
+**Config**: `config/train_qrdqn_single.yml`
 
 - Single process (no multiprocessing)
-- 100k timesteps by default
-- Fast startup, stable on all platforms
-- Good for testing and development
+- 1M timesteps by default
+- Stable on all platforms including macOS
 
 ```bash
-python3 train_simple.py
+python3 train.py --config config/train_qrdqn_single.yml
 ```
 
-### Option 2: Advanced Training (Parallel Environments)
+### Option 2: Parallel Environments
 
-**File**: `train.py`
+**Config**: `config/train_qrdqn.yml`
 
 - Multi-process with `SubprocVecEnv`
 - Full configuration via YAML
 - Checkpointing, TensorBoard logging
 - Up to 8x faster on multi-core systems
 
-**Note**: May have issues on macOS due to multiprocessing + Box2D. Use `train_simple.py` if you encounter errors.
+**Note**: May have issues on macOS due to multiprocessing + Box2D. Use single-process config if you encounter errors.
 
 ```bash
-# Single environment config (stable)
-python3 train.py --config config/train_qrdqn_single.yml
-
-# Multi-environment config (faster, may be unstable on macOS)
 python3 train.py --config config/train_qrdqn.yml
 ```
 
@@ -98,8 +93,7 @@ python3 train.py --config config/train_qrdqn.yml
 - `src/physics.py` - Box2D physics
 
 ### Training Scripts
-- `train_simple.py` - Simple single-process training
-- `train.py` - Advanced multi-process training
+- `train.py` - Training (supports single or parallel envs via config)
 - `evaluate.py` - Model evaluation
 
 ### Configuration
@@ -182,9 +176,8 @@ sys.path.insert(0, 'src')
 ### Multiprocessing Errors
 
 If `train.py` fails with mutex/threading errors:
-1. Use `train_simple.py` instead
-2. Or set `n_envs: 1` in config
-3. Or use `config/train_qrdqn_single.yml`
+1. Use `config/train_qrdqn_single.yml` (single process)
+2. Or set `n_envs: 1` in your config
 
 ### Memory Issues
 
@@ -203,17 +196,17 @@ Check:
 ## Example Workflow
 
 ```bash
-# 1. Quick test (2 minutes)
-python3 train_simple.py
+# 1. Quick test (single process)
+python3 train.py --config config/train_qrdqn_single.yml
 
 # 2. Evaluate
-python3 evaluate.py --model qwop_simple_model.zip --episodes 50
+python3 evaluate.py --model data/models/QRDQN_*/final_model.zip --episodes 50
 
-# 3. Longer training (adjust timesteps in train_simple.py to 1M)
-python3 train_simple.py
+# 3. Longer training (edit total_timesteps in config to 5M+)
+python3 train.py --config config/train_qrdqn_single.yml --run-id long_run
 
 # 4. Compare performance
-python3 evaluate.py --model qwop_simple_model.zip --episodes 100 --output data/eval/
+python3 evaluate.py --model data/models/QRDQN_*/final_model.zip --episodes 100 --output data/eval/
 ```
 
 ## Next Steps

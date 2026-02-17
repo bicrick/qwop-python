@@ -52,3 +52,4 @@ model_dir: data/models
 # Logging
 log_dir: data/logs
 tensorboard: true             # Enable TensorBoard logging
+user_metrics_log_interval: 1  # Log every step (like qwop-wr) for frequent TensorBoard updates

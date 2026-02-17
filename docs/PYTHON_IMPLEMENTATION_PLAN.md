@@ -139,7 +139,7 @@ Create `renderer.py` with:
 - Depth order matters for visual correctness
 
 ### Phase 8: Main Entry Point
-Create `main.py` with:
+Create `play.py` with:
 - Pygame initialization
 - System integration
 - Main game loop (60 FPS rendering, 25 FPS physics)
@@ -220,11 +220,10 @@ qwop-python/
 │   ├── controls.py       # Input to motor mapping
 │   ├── game.py           # Update loop, state, camera
 │   ├── renderer.py       # Pygame rendering
-│   └── main.py           # Entry point
+│   └── play.py           # Interactive gameplay
 ├── docs/                 # 17 documentation files (complete)
-├── legacy/               # Original QWOP files
+├── legacy/               # Original QWOP files + extracted reference assets
 ├── requirements.txt
-└── environment.yml
 ```
 
 ## Estimated Implementation Time
