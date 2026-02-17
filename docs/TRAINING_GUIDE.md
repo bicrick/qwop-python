@@ -43,6 +43,7 @@ Training runs much faster than qwop-wr because:
 
 ```bash
 tensorboard --logdir data/logs/
+# Optional: add --reload_interval 5 for faster UI refresh during training
 ```
 
 ### 4. Evaluate the Model

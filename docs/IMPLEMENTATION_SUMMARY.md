@@ -126,7 +126,7 @@ Box2D Physics (fixed 0.04s timestep)
 
 ### 1. Headless by Default
 - Environment runs `verbose=False, headless=True` by default
-- `main.py` explicitly sets `verbose=True, headless=False` for playable game
+- `play.py` explicitly sets `verbose=True, headless=False` for playable game
 - Zero performance impact from print/camera/rendering during training
 
 ### 2. Frame Skipping
@@ -185,7 +185,7 @@ env = TimeLimit(env, 1000)  # ✓ Truncation working
 **Modified:**
 - `src/game.py` - Added `verbose` and `headless` parameters
 - `src/physics.py` - Added `verbose` parameter
-- `main.py` - Updated to use `verbose=True, headless=False`
+- `play.py` - Updated to use `verbose=True, headless=False`
 
 ## Usage Examples
 

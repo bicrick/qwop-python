@@ -259,7 +259,7 @@ def train(config_path, run_id='default', resume_from=None):
     )
     callbacks.append(checkpoint_callback)
 
-    log_interval = config.get('user_metrics_log_interval', 50)
+    log_interval = config.get('user_metrics_log_interval', 1)
     callbacks.append(LogCallback(log_interval=log_interval))
 
     callback_list = CallbackList(callbacks)
