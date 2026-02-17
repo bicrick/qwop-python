@@ -40,7 +40,7 @@ class QWOPGame:
     The update loop sequence exactly matches QWOP_FUNCTIONS_EXACT.md lines 10-189.
     """
     
-    def __init__(self, seed=None):
+    def __init__(self, seed=None, verbose=True, headless=False):
         """
         Initialize QWOP game.
         
@@ -49,11 +49,16 @@ class QWOPGame:
         
         Args:
             seed: Optional seed for deterministic behavior (for RL compatibility)
+            verbose: If True, print game events (default: True)
+            headless: If True, skip camera/speed tracking for faster training (default: False)
         """
+        self.verbose = verbose
+        self.headless = headless
+        
         # Core subsystems
-        self.physics = PhysicsWorld()
+        self.physics = PhysicsWorld(verbose=verbose)
         self.game_state = GameState()
-        self.contact_listener = QWOPContactListener(self.game_state)
+        self.contact_listener = QWOPContactListener(self.game_state, verbose=verbose)
         self.controls = ControlsHandler(self.physics)
         
         # Game state flags
@@ -88,9 +93,10 @@ class QWOPGame:
         
         Call this once at game startup after construction.
         """
-        print("=" * 70)
-        print("QWOP GAME INITIALIZATION")
-        print("=" * 70)
+        if self.verbose:
+            print("=" * 70)
+            print("QWOP GAME INITIALIZATION")
+            print("=" * 70)
         
         # Initialize physics (creates world, ground, bodies, joints)
         self.physics.initialize()
@@ -98,10 +104,11 @@ class QWOPGame:
         # Wire up collision detection
         self.physics.set_contact_listener(self.contact_listener)
         
-        print("=" * 70)
-        print("✓ QWOP Game Ready!")
-        print("=" * 70)
-        print()
+        if self.verbose:
+            print("=" * 70)
+            print("✓ QWOP Game Ready!")
+            print("=" * 70)
+            print()
     
     def start(self):
         """
@@ -111,7 +118,8 @@ class QWOPGame:
         """
         if not self.first_click:
             self.first_click = True
-            print("✓ Game started!")
+            if self.verbose:
+                print("✓ Game started!")
     
     def update(self, dt):
         """
@@ -148,12 +156,14 @@ class QWOPGame:
                 head.ApplyTorque(torque, True)
         
         # Step 5: Speed tracking (rolling average for future audio)
-        head = self.physics.get_body('head')
-        if head is not None:
-            self.speed_array.append(head.linearVelocity[0])
-            if len(self.speed_array) > SPEED_ARRAY_MAX:
-                self.speed_array.pop(0)
-            self.average_speed = sum(self.speed_array) / len(self.speed_array) if self.speed_array else 0.0
+        # Skip in headless mode for performance
+        if not self.headless:
+            head = self.physics.get_body('head')
+            if head is not None:
+                self.speed_array.append(head.linearVelocity[0])
+                if len(self.speed_array) > SPEED_ARRAY_MAX:
+                    self.speed_array.pop(0)
+                self.average_speed = sum(self.speed_array) / len(self.speed_array) if self.speed_array else 0.0
         
         # Step 6: Control input processing
         self.controls.apply()
@@ -163,7 +173,9 @@ class QWOPGame:
             self.physics.step()
         
         # Step 9: Camera follow logic
-        self._update_camera()
+        # Skip in headless mode for performance
+        if not self.headless:
+            self._update_camera()
         
         # Step 10: Score calculation
         if not self.game_state.jump_landed:
@@ -234,22 +246,23 @@ class QWOPGame:
         if self.game_state.score > self.game_state.high_score:
             self.game_state.high_score = self.game_state.score
         
-        print()
-        print("=" * 70)
-        print("GAME OVER")
-        print("=" * 70)
-        print(f"Final Score: {self.game_state.score:.1f} metres")
-        print(f"Time: {self.score_time:.1f} seconds")
-        print(f"High Score: {self.game_state.high_score:.1f} metres")
-        
-        if self.game_state.jump_landed and not self.game_state.fallen:
-            print("Status: SUCCESS! You cleared the hurdle!")
-        else:
-            print("Status: Fell")
-        
-        print("=" * 70)
-        print("Press 'R' to reset")
-        print()
+        if self.verbose:
+            print()
+            print("=" * 70)
+            print("GAME OVER")
+            print("=" * 70)
+            print(f"Final Score: {self.game_state.score:.1f} metres")
+            print(f"Time: {self.score_time:.1f} seconds")
+            print(f"High Score: {self.game_state.high_score:.1f} metres")
+            
+            if self.game_state.jump_landed and not self.game_state.fallen:
+                print("Status: SUCCESS! You cleared the hurdle!")
+            else:
+                print("Status: Fell")
+            
+            print("=" * 70)
+            print("Press 'R' to reset")
+            print()
     
     def reset(self, seed=None):
         """
@@ -267,8 +280,9 @@ class QWOPGame:
         - Camera position
         - Timing
         """
-        print()
-        print("Resetting game...")
+        if self.verbose:
+            print()
+            print("Resetting game...")
         
         # Update seed if provided
         if seed is not None:
@@ -314,5 +328,6 @@ class QWOPGame:
         self.camera_x = CAMERA_HORIZONTAL_OFFSET * WORLD_SCALE
         self.camera_y = INITIAL_CAMERA_Y
         
-        print("✓ Game reset complete")
-        print()
+        if self.verbose:
+            print("✓ Game reset complete")
+            print()

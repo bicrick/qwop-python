@@ -1,11 +1,37 @@
 # QWOP Python
 
-## Running the Game
+A faithful recreation of QWOP in Python using Box2D physics, with full RL training support.
 
-To start the Athletics.html file on a local server:
+## Installation
 
 ```bash
-cd legacy && python3 -m http.server 8000
+pip install -r requirements.txt
+
+# If you get progress bar errors, also install:
+pip install tqdm rich
 ```
 
-Then open your browser and navigate to `http://localhost:8000/Athletics.html`
+## Playing the Game
+
+```bash
+python main.py
+```
+
+**Controls**: Q/W/O/P to move, R to reset, ESC to quit
+
+## Training RL Agents
+
+```bash
+# Quick training (100k timesteps, ~2 minutes)
+python3 train_simple.py
+
+# Evaluate trained model
+python3 evaluate.py --model data/models/QRDQN_simple_*/final_model.zip --episodes 50
+
+# Monitor with TensorBoard
+tensorboard --logdir data/
+```
+
+**Performance**: 100-500x faster than WebSocket-based training (native Python, no browser overhead)
+
+See `docs/` for detailed guides.

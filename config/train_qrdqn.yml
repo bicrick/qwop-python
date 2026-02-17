@@ -1,0 +1,53 @@
+# QRDQN Training Configuration
+# Adapted from qwop-wr proven config for native Python environment
+# With faster training possible, using fewer timesteps for validation
+
+# Algorithm and training duration
+algorithm: QRDQN
+total_timesteps: 5_000_000  # Reduced from 32M - native Python trains faster
+n_envs: 4                    # Parallel environments (can increase on more cores)
+max_episode_steps: 1000      # Max steps per episode before truncation
+
+# Environment configuration
+env_kwargs:
+  frames_per_step: 4          # 4 physics ticks per action = 0.16s game-time
+  reduced_action_set: true    # Use 9 actions instead of 16
+  failure_cost: 10.0          # Penalty for falling
+  success_reward: 50.0        # Bonus for completing course
+  time_cost_mult: 10.0        # Time cost multiplier in reward
+
+# QRDQN hyperparameters (proven config from qwop-wr)
+learner_kwargs:
+  # Buffer
+  buffer_size: 100_000        # Replay buffer size
+  learning_starts: 10_000     # Steps before training starts (reduced from 100k)
+  
+  # Training
+  batch_size: 64              # Minibatch size
+  gamma: 0.997                # Discount factor (high for long-term rewards)
+  learning_rate: 0.001        # Constant learning rate
+  
+  # Target network
+  target_update_interval: 512 # Update target network every N steps (vs default 100k)
+  
+  # Exploration
+  exploration_fraction: 0.3   # Fraction of training for epsilon decay
+  exploration_initial_eps: 0.2  # Initial epsilon
+  exploration_final_eps: 0.0  # Final epsilon (full exploitation)
+  
+  # Update frequency
+  train_freq: 4               # Train every N steps
+  gradient_steps: 1           # Gradient steps per train call
+  
+  # Policy network
+  policy_kwargs:
+    net_arch: [256, 256]      # Hidden layer sizes
+
+# Checkpointing
+save_freq: 100_000            # Save checkpoint every N timesteps
+checkpoint_dir: data/checkpoints
+model_dir: data/models
+
+# Logging
+log_dir: data/logs
+tensorboard: true             # Enable TensorBoard logging
