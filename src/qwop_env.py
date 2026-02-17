@@ -191,9 +191,20 @@ class QWOPEnv(gymnasium.Env):
         Returns:
             Dictionary with game state information
         """
+        distance = self.game.game_state.score
+        time_val = self.game.score_time
+        avgspeed = distance / time_val if time_val > 0 else 0.0
+        is_success = 1.0 if (
+            self.game.game_state.game_ended
+            and self.game.game_state.jump_landed
+            and not self.game.game_state.fallen
+        ) else 0.0
+
         return {
-            'distance': self.game.game_state.score,
-            'time': self.game.score_time,
+            'time': time_val,
+            'distance': distance,
+            'avgspeed': avgspeed,
+            'is_success': is_success,
             'fallen': self.game.game_state.fallen,
             'jumped': self.game.game_state.jumped,
             'jump_landed': self.game.game_state.jump_landed,

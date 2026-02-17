@@ -22,13 +22,17 @@ sys.path.insert(0, 'src')
 
 import numpy as np
 from stable_baselines3.common.vec_env import SubprocVecEnv, VecMonitor
-from stable_baselines3.common.callbacks import CheckpointCallback, CallbackList
+from stable_baselines3.common.callbacks import BaseCallback, CheckpointCallback, CallbackList
 from stable_baselines3.common.monitor import Monitor
+from stable_baselines3.common.utils import safe_mean
 from gymnasium.wrappers import TimeLimit
 from sb3_contrib import QRDQN
 from stable_baselines3 import PPO, A2C, DQN
 
 from qwop_env import QWOPEnv
+
+
+INFO_KEYS = ("time", "distance", "avgspeed", "is_success")
 
 
 # Algorithm registry
@@ -38,6 +42,29 @@ ALGORITHMS = {
     'PPO': PPO,
     'A2C': A2C,
 }
+
+
+class LogCallback(BaseCallback):
+    """Logs user-defined info values into TensorBoard. Throttled for performance."""
+
+    def __init__(self, log_interval: int = 50, **kwargs):
+        super().__init__(**kwargs)
+        self.log_interval = log_interval
+
+    def _on_step(self) -> bool:
+        if not self.model.ep_info_buffer:
+            return True
+        if self.log_interval and self.n_calls % self.log_interval != 0:
+            return True
+        buf = self.model.ep_info_buffer
+        for k in INFO_KEYS:
+            try:
+                v = safe_mean([e[k] for e in buf if k in e])
+                if v == v:  # not NaN
+                    self.model.logger.record(f"user/{k}", v)
+            except (KeyError, ZeroDivisionError):
+                pass
+        return True
 
 
 def make_env(rank, seed, env_kwargs, max_episode_steps):
@@ -61,7 +88,7 @@ def make_env(rank, seed, env_kwargs, max_episode_steps):
         env = TimeLimit(env, max_episode_steps=max_episode_steps)
         
         # Add monitor wrapper for logging
-        env = Monitor(env)
+        env = Monitor(env, info_keywords=INFO_KEYS)
         
         return env
     
@@ -172,7 +199,7 @@ def train(config_path, run_id='default', resume_from=None):
     ]
     
     venv = SubprocVecEnv(env_fns)
-    venv = VecMonitor(venv, filename=str(Path(paths['log_dir']) / 'monitor'))
+    venv = VecMonitor(venv, filename=str(Path(paths['log_dir']) / 'monitor'), info_keywords=INFO_KEYS)
     print(f"✓ Created {config['n_envs']} parallel environments")
     print()
     
@@ -231,7 +258,10 @@ def train(config_path, run_id='default', resume_from=None):
         save_vecnormalize=True,
     )
     callbacks.append(checkpoint_callback)
-    
+
+    log_interval = config.get('user_metrics_log_interval', 50)
+    callbacks.append(LogCallback(log_interval=log_interval))
+
     callback_list = CallbackList(callbacks)
     
     # Train
