@@ -61,7 +61,7 @@ def main():
     print("=" * 70)
     print()
     
-    game = QWOPGame()
+    game = QWOPGame(verbose=True, headless=False)
     game.initialize()
     
     renderer = QWOPRenderer(screen)

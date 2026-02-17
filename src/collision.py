@@ -58,15 +58,17 @@ class QWOPContactListener(b2ContactListener):
     All logic matches original QWOP.js lines 912-954.
     """
     
-    def __init__(self, game_state):
+    def __init__(self, game_state, verbose=True):
         """
         Initialize contact listener with game state.
         
         Args:
             game_state: GameState instance to read/mutate during collisions
+            verbose: If True, print collision events (default: True)
         """
         b2ContactListener.__init__(self)
         self.game_state = game_state
+        self.verbose = verbose
     
     def BeginContact(self, contact):
         """
@@ -205,7 +207,6 @@ class QWOPContactListener(b2ContactListener):
             return
         
         gs.fallen = True
-        print(f"✗ Player fell at x={maxX * WORLD_SCALE:.1f}")
         
         # Calculate impact velocity (for sound selection)
         velocityA = body_part_body.linearVelocity
@@ -213,12 +214,14 @@ class QWOPContactListener(b2ContactListener):
         relative_velocity = (velocityA[0] - velocityB[0], velocityA[1] - velocityB[1])
         gs.impact_speed = (relative_velocity[0]**2 + relative_velocity[1]**2)**0.5
         
-        # Determine impact sound (for future audio implementation)
-        if gs.impact_speed > IMPACT_SOUND_THRESHOLD:
-            sound = "crunch"  # Hard impact
-        else:
-            sound = "ehh"  # Soft impact
-        print(f"  Impact velocity: {gs.impact_speed:.2f} m/s (sound: {sound})")
+        if self.verbose:
+            # Determine impact sound (for future audio implementation)
+            if gs.impact_speed > IMPACT_SOUND_THRESHOLD:
+                sound = "crunch"  # Hard impact
+            else:
+                sound = "ehh"  # Soft impact
+            print(f"✗ Player fell at x={maxX * WORLD_SCALE:.1f}")
+            print(f"  Impact velocity: {gs.impact_speed:.2f} m/s (sound: {sound})")
         
         # If jumped but not landed, count as landing
         if gs.jumped and not gs.jump_landed:
@@ -228,7 +231,8 @@ class QWOPContactListener(b2ContactListener):
         gs.score = round(maxX) / 10
         if gs.score > gs.high_score:
             gs.high_score = gs.score
-            print(f"  Final score: {gs.score:.1f}m (high: {gs.high_score:.1f}m)")
+            if self.verbose:
+                print(f"  Final score: {gs.score:.1f}m (high: {gs.high_score:.1f}m)")
     
     def EndContact(self, contact):
         """

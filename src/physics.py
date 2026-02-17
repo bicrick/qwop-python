@@ -42,8 +42,13 @@ class PhysicsWorld:
     - 11 revolute joints connecting body parts
     """
     
-    def __init__(self):
-        """Initialize physics world container."""
+    def __init__(self, verbose=True):
+        """Initialize physics world container.
+        
+        Args:
+            verbose: If True, print initialization messages (default: True)
+        """
+        self.verbose = verbose
         self.world = None
         self.bodies = {}  # Dict of body name -> b2Body
         self.joints = {}  # Dict of joint name -> b2RevoluteJoint
@@ -62,7 +67,8 @@ class PhysicsWorld:
         - doSleep: True (allows bodies to sleep when at rest)
         """
         self.world = b2World(gravity=(0, GRAVITY), doSleep=True)
-        print(f"✓ Physics world created with gravity (0, {GRAVITY})")
+        if self.verbose:
+            print(f"✓ Physics world created with gravity (0, {GRAVITY})")
         
     def create_ground(self):
         """
@@ -125,7 +131,8 @@ class PhysicsWorld:
         # Store reference to first segment as ground_body (backward compatibility)
         self.ground_body = self.ground_segments[0]
         
-        print(f"✓ Ground created: {num_segments} segments at y={TRACK_Y}")
+        if self.verbose:
+            print(f"✓ Ground created: {num_segments} segments at y={TRACK_Y}")
         
     def create_body_part(self, name, config):
         """
@@ -221,7 +228,8 @@ class PhysicsWorld:
                 assert config['friction'] == 1.5, f"{name} friction must be 1.5"
                 assert config['density'] == 3.0, f"{name} density must be 3.0"
         
-        print(f"✓ Created {len(self.bodies)} body parts")
+        if self.verbose:
+            print(f"✓ Created {len(self.bodies)} body parts")
         
     def create_joint(self, name, config):
         """
@@ -325,7 +333,8 @@ class PhysicsWorld:
             if config['enable_motor']:
                 assert joint.motorSpeed == 0, f"{name} must start with motorSpeed=0"
         
-        print(f"✓ Created {len(self.joints)} joints")
+        if self.verbose:
+            print(f"✓ Created {len(self.joints)} joints")
     
     def create_hurdle(self):
         """
@@ -434,9 +443,10 @@ class PhysicsWorld:
         # Create joint
         self.hurdle_joint = self.world.CreateJoint(joint_def)
         
-        print(f"✓ Hurdle created at x={base_x}m")
-        print(f"  Base: {HURDLE_BASE_SIZE[0]}x{HURDLE_BASE_SIZE[1]}px at ({base_x:.3f}, {base_y:.3f})m")
-        print(f"  Top: {HURDLE_TOP_SIZE[0]}x{HURDLE_TOP_SIZE[1]}px at ({top_x:.3f}, {top_y:.3f})m")
+        if self.verbose:
+            print(f"✓ Hurdle created at x={base_x}m")
+            print(f"  Base: {HURDLE_BASE_SIZE[0]}x{HURDLE_BASE_SIZE[1]}px at ({base_x:.3f}, {base_y:.3f})m")
+            print(f"  Top: {HURDLE_TOP_SIZE[0]}x{HURDLE_TOP_SIZE[1]}px at ({top_x:.3f}, {top_y:.3f})m")
         
     def get_body(self, name):
         """
@@ -476,7 +486,8 @@ class PhysicsWorld:
             raise RuntimeError("World must be created before setting contact listener")
         
         self.world.contactListener = listener
-        print(f"✓ Contact listener attached: {listener.__class__.__name__}")
+        if self.verbose:
+            print(f"✓ Contact listener attached: {listener.__class__.__name__}")
         
     def step(self, dt=None):
         """
@@ -508,18 +519,20 @@ class PhysicsWorld:
         
         Call this once at startup.
         """
-        print("Initializing QWOP physics world...")
+        if self.verbose:
+            print("Initializing QWOP physics world...")
         self.create_world()
         self.create_ground()
         if HURDLES_ENABLED:
             self.create_hurdle()
         self.create_bodies()
         self.create_joints()
-        print("✓ Physics world initialization complete")
-        print(f"  Bodies: {len(self.bodies)}")
-        print(f"  Joints: {len(self.joints)}")
-        if HURDLES_ENABLED:
-            print(f"  Hurdles: Enabled")
+        if self.verbose:
+            print("✓ Physics world initialization complete")
+            print(f"  Bodies: {len(self.bodies)}")
+            print(f"  Joints: {len(self.joints)}")
+            if HURDLES_ENABLED:
+                print(f"  Hurdles: Enabled")
     
     def reset(self):
         """
@@ -539,7 +552,8 @@ class PhysicsWorld:
         if self.world is None:
             raise RuntimeError("World must be initialized before reset")
         
-        print("Resetting player...")
+        if self.verbose:
+            print("Resetting player...")
         
         # 1. Destroy all player joints
         for joint in list(self.joints.values()):
@@ -574,6 +588,7 @@ class PhysicsWorld:
         self.create_bodies()
         self.create_joints()
         
-        print("✓ Player reset complete")
-        print(f"  Bodies: {len(self.bodies)}")
-        print(f"  Joints: {len(self.joints)}")
+        if self.verbose:
+            print("✓ Player reset complete")
+            print(f"  Bodies: {len(self.bodies)}")
+            print(f"  Joints: {len(self.joints)}")
