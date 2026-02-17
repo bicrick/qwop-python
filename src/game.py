@@ -40,12 +40,15 @@ class QWOPGame:
     The update loop sequence exactly matches QWOP_FUNCTIONS_EXACT.md lines 10-189.
     """
     
-    def __init__(self):
+    def __init__(self, seed=None):
         """
         Initialize QWOP game.
         
         Creates all subsystems but does not initialize physics yet.
         Call initialize() after construction to set up the physics world.
+        
+        Args:
+            seed: Optional seed for deterministic behavior (for RL compatibility)
         """
         # Core subsystems
         self.physics = PhysicsWorld()
@@ -68,6 +71,16 @@ class QWOPGame:
         self.camera_x = INITIAL_CAMERA_X  # -200 pixels
         self.camera_y = INITIAL_CAMERA_Y  # -200 pixels
         self.camera_offset = CAMERA_HORIZONTAL_OFFSET  # -14
+        
+        # RNG seed (for RL compatibility)
+        self.seed = seed
+        if seed is not None:
+            # Box2D is deterministic by default, but we store the seed
+            # in case any future features need RNG
+            import random
+            import numpy as np
+            random.seed(seed)
+            np.random.seed(seed)
     
     def initialize(self):
         """
@@ -238,11 +251,14 @@ class QWOPGame:
         print("Press 'R' to reset")
         print()
     
-    def reset(self):
+    def reset(self, seed=None):
         """
         Reset the game to initial state.
         
-        Called when user presses 'R' key to restart.
+        Called when user presses 'R' key to restart, or by RL environment.
+        
+        Args:
+            seed: Optional new seed for deterministic behavior
         
         Resets:
         - Physics (destroys and recreates player bodies/joints)
@@ -253,6 +269,20 @@ class QWOPGame:
         """
         print()
         print("Resetting game...")
+        
+        # Update seed if provided
+        if seed is not None:
+            self.seed = seed
+            import random
+            import numpy as np
+            random.seed(seed)
+            np.random.seed(seed)
+        elif self.seed is not None:
+            # Re-seed with same seed for deterministic resets
+            import random
+            import numpy as np
+            random.seed(self.seed)
+            np.random.seed(self.seed)
         
         # Reset controls
         self.controls.reset()
