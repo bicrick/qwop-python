@@ -1,0 +1,46 @@
+# A2C Training Configuration
+# Adapted from qwop-wr templates for native Python environment
+# Simpler on-policy baseline than PPO
+
+# Algorithm and training duration
+algorithm: A2C
+total_timesteps: 5_000_000
+n_envs: 4                    # Parallel environments (can increase on more cores)
+max_episode_steps: 1000      # Max steps per episode before truncation
+
+# Environment configuration
+env_kwargs:
+  frames_per_step: 4          # 4 physics ticks per action = 0.16s game-time
+  reduced_action_set: true    # Use 9 actions instead of 16
+  failure_cost: 10.0          # Penalty for falling
+  success_reward: 50.0        # Bonus for completing course
+  time_cost_mult: 10.0        # Time cost multiplier in reward
+
+# A2C hyperparameters (from qwop-wr templates)
+learner_kwargs:
+  device: "auto"              # cuda > mps > cpu
+  n_steps: 5                  # Steps per env before update
+  gamma: 0.99                 # Discount factor
+  gae_lambda: 1.0
+  ent_coef: 0.0
+  vf_coef: 0.5
+  max_grad_norm: 0.5
+  rms_prop_eps: 0.00001
+  use_rms_prop: true
+  use_sde: false
+  sde_sample_freq: -1
+  normalize_advantage: false
+  stats_window_size: 100
+  learning_rate: 0.0007       # From qwop-wr learner_lr_schedule const_0.0007
+  policy_kwargs:
+    net_arch: [256, 256]      # Hidden layer sizes (match QRDQN)
+
+# Checkpointing
+save_freq: 100_000            # Save checkpoint every N timesteps
+checkpoint_dir: data/checkpoints
+model_dir: data/models
+
+# Logging
+log_dir: data/logs
+tensorboard: true
+user_metrics_log_interval: 1
