@@ -68,6 +68,21 @@ def make_env(rank, seed, env_kwargs, max_episode_steps):
     return _init
 
 
+def get_device(prefer: str = "auto") -> str:
+    """
+    Return best available PyTorch device: cuda > mps > cpu.
+    """
+    if prefer and prefer != "auto":
+        return prefer
+    
+    import torch
+    if torch.cuda.is_available():
+        return "cuda"
+    if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+        return "mps"
+    return "cpu"
+
+
 def load_config(config_path):
     """
     Load training configuration from YAML file.
@@ -168,18 +183,25 @@ def train(config_path, run_id='default', resume_from=None):
     
     AlgorithmClass = ALGORITHMS[algo_name]
     
+    # Resolve device (cuda > mps > cpu)
+    learner_kwargs = dict(config.get('learner_kwargs', {}))
+    device = get_device(learner_kwargs.pop("device", "auto"))
+    learner_kwargs["device"] = device
+    print(f"Using device: {device}")
+    print()
+    
     # Create or load model
     if resume_from:
         print(f"Resuming from checkpoint: {resume_from}")
         model = AlgorithmClass.load(
             resume_from,
             env=venv,
+            device=device,
             tensorboard_log=paths['log_dir'] if config.get('tensorboard', False) else None
         )
         print("✓ Model loaded")
     else:
         print(f"Creating new {algo_name} model...")
-        learner_kwargs = config.get('learner_kwargs', {})
         
         model = AlgorithmClass(
             policy="MlpPolicy",
@@ -222,7 +244,7 @@ def train(config_path, run_id='default', resume_from=None):
         model.learn(
             total_timesteps=config['total_timesteps'],
             callback=callback_list,
-            progress_bar=False,  # Set to False to avoid tqdm/rich dependency
+            progress_bar=True,
             reset_num_timesteps=False if resume_from else True,
         )
         

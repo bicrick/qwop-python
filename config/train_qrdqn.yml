@@ -18,6 +18,7 @@ env_kwargs:
 
 # QRDQN hyperparameters (proven config from qwop-wr)
 learner_kwargs:
+  device: "auto"  # cuda > mps > cpu
   # Buffer
   buffer_size: 100_000        # Replay buffer size
   learning_starts: 10_000     # Steps before training starts (reduced from 100k)
