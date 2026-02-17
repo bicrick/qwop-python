@@ -1,0 +1,15 @@
+# Configuration for collecting expert demonstrations for DQNfD training
+# Usage: python collect_demos.py --config config/collect_demos.yml
+
+model_file: "data/models/QRDQN_*/final_model.zip"
+out_file: "data/demonstrations/qrdqn_proven_demos.npz"
+n_episodes: 50
+seed_start: 10000
+max_episode_steps: 1000
+
+env_kwargs:
+  frames_per_step: 4
+  reduced_action_set: true
+  failure_cost: 10.0
+  success_reward: 50.0
+  time_cost_mult: 10.0

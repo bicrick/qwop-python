@@ -1,0 +1,42 @@
+# QRDQN-PROVEN: Proven Configuration from Successful Run
+# Brought over from qwop-wr/config
+# Based on run which achieved ~69% success, 13.96 m/s avg speed, stable 32M training
+#
+# Key: aggressive exploration decay, fast target updates (512), high gamma (0.997)
+
+algorithm: QRDQN
+total_timesteps: 32_000_000
+n_envs: 4
+max_episode_steps: 1000
+
+env_kwargs:
+  frames_per_step: 4
+  reduced_action_set: true
+  failure_cost: 10.0
+  success_reward: 50.0
+  time_cost_mult: 10.0
+
+learner_kwargs:
+  device: "auto"
+  buffer_size: 100000
+  learning_starts: 100000
+  batch_size: 64
+  tau: 1.0
+  gamma: 0.997
+  train_freq: 4
+  gradient_steps: 1
+  target_update_interval: 512
+  exploration_fraction: 0.3
+  exploration_initial_eps: 0.2
+  exploration_final_eps: 0.0
+  learning_rate: 0.001
+  policy_kwargs:
+    net_arch: [256, 128]
+
+save_freq: 100_000
+checkpoint_dir: data/checkpoints
+model_dir: data/models
+
+log_dir: data/logs
+tensorboard: true
+user_metrics_log_interval: 1

@@ -1,0 +1,48 @@
+# DQNfD Stage 3: Speed Optimization
+# Brought over from qwop-wr/config
+#
+# Target: world record territory (~13.3 m/s avg speed for 45s run).
+# Load Stage 2 model: --resume-from data/DQNfD-Stage2-<run_id>/model.zip
+#
+# Note: qwop-wr uses VelocityIncentiveWrapper for aggressive speed bonuses.
+# Port that wrapper for full Stage 3 behavior. This config uses reduced
+# time_cost_mult to shift focus toward speed.
+
+algorithm: QRDQN
+total_timesteps: 10_000_000
+n_envs: 1
+max_episode_steps: 1000
+
+# model_load_file: "data/DQNfD-Stage2-XXXXX/model.zip"
+
+env_kwargs:
+  frames_per_step: 4
+  reduced_action_set: true
+  failure_cost: 10.0
+  success_reward: 50.0
+  time_cost_mult: 5.0  # Reduced - focus on speed over haste
+
+learner_kwargs:
+  device: "auto"
+  buffer_size: 300000
+  learning_starts: 5000
+  batch_size: 64
+  tau: 1.0
+  gamma: 0.997
+  train_freq: 4
+  gradient_steps: 1
+  target_update_interval: 512
+  exploration_fraction: 0.2
+  exploration_initial_eps: 0.02
+  exploration_final_eps: 0.0
+  learning_rate: 0.00005
+  policy_kwargs:
+    net_arch: [256, 128]
+
+save_freq: 200_000
+checkpoint_dir: data/checkpoints
+model_dir: data/models
+
+log_dir: data/logs
+tensorboard: true
+user_metrics_log_interval: 1
