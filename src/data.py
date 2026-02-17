@@ -397,6 +397,8 @@ TRACK_DENSITY = 30  # Very heavy (static body)
 # Source: docs/QWOP_COMPLETE_DATA_REFERENCE.md
 # =============================================================================
 
+HURDLES_ENABLED = False  # Set to True to enable hurdle obstacle
+
 HURDLE_BASE_POS = (10000, 175.5)  # (x, y) in pixels
 HURDLE_BASE_SIZE = (67, 12)  # (width, height) in pixels
 HURDLE_TOP_POS = (10017.3, 101.15)  # (x, y) in pixels
@@ -406,6 +408,10 @@ HURDLE_BASE_CATEGORY = CATEGORY_HURDLE
 HURDLE_BASE_MASK = 0xFFF9  # 65529 - collides with ground only
 HURDLE_TOP_CATEGORY = CATEGORY_HURDLE
 HURDLE_TOP_MASK = 0xFFFB  # 65531 - collides with ground and player
+
+# Hurdle joint anchors (from QWOP.js line 1028)
+HURDLE_JOINT_ANCHOR_A = (3.6 / WORLD_SCALE, 74.6 / WORLD_SCALE)  # (0.18, 3.73) - top anchor
+HURDLE_JOINT_ANCHOR_B = (20.9 / WORLD_SCALE, 0.25 / WORLD_SCALE)  # (1.045, 0.0125) - base anchor
 
 # =============================================================================
 # GAMEPLAY CONSTANTS

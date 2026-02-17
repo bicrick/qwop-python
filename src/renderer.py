@@ -19,7 +19,10 @@ from data import (
     WORLD_SCALE,
     SCREEN_WIDTH,
     SCREEN_HEIGHT,
-    TRACK_Y
+    TRACK_Y,
+    HURDLES_ENABLED,
+    HURDLE_BASE_SIZE,
+    HURDLE_TOP_SIZE
 )
 
 
@@ -58,6 +61,8 @@ class QWOPRenderer:
             'text': (255, 255, 255),     # White
             'text_shadow': (0, 0, 0),    # Black
             'game_over': (220, 50, 50),  # Red
+            'hurdle_base': (139, 90, 43),  # Dark brown (same as track)
+            'hurdle_top': (180, 120, 70),  # Lighter brown
         }
         
         # Body part colors - distinct and visually clear
@@ -95,6 +100,7 @@ class QWOPRenderer:
         
         # Draw layers in order
         self._draw_background(game)
+        self._draw_hurdle(game)
         self._draw_body_parts(game)
         self._draw_hud(game)
         self._draw_key_indicators(game)
@@ -124,6 +130,78 @@ class QWOPRenderer:
             self.colors['track'],
             (screen_x, screen_y, track_width_px, track_height_px)
         )
+    
+    def _draw_hurdle(self, game):
+        """
+        Draw hurdle obstacle (base and top) as rotated rectangles.
+        
+        Args:
+            game: QWOPGame instance
+        """
+        # Only draw if hurdles are enabled
+        if not HURDLES_ENABLED:
+            return
+        
+        # Draw hurdle base
+        if game.physics.hurdle_base is not None:
+            base_body = game.physics.hurdle_base
+            base_width_px = HURDLE_BASE_SIZE[0]
+            base_height_px = HURDLE_BASE_SIZE[1]
+            
+            self._draw_hurdle_part(
+                base_body, 
+                base_width_px, 
+                base_height_px, 
+                self.colors['hurdle_base'],
+                game
+            )
+        
+        # Draw hurdle top
+        if game.physics.hurdle_top is not None:
+            top_body = game.physics.hurdle_top
+            top_width_px = HURDLE_TOP_SIZE[0]
+            top_height_px = HURDLE_TOP_SIZE[1]
+            
+            self._draw_hurdle_part(
+                top_body,
+                top_width_px,
+                top_height_px,
+                self.colors['hurdle_top'],
+                game
+            )
+    
+    def _draw_hurdle_part(self, body, width_px, height_px, color, game):
+        """
+        Draw a single hurdle part as a rotated rectangle.
+        
+        Args:
+            body: Box2D body (b2Body)
+            width_px: Width in pixels
+            height_px: Height in pixels
+            color: RGB tuple
+            game: QWOPGame instance
+        """
+        # Create surface for this hurdle part
+        surf = pygame.Surface((width_px, height_px), pygame.SRCALPHA)
+        surf.fill(color)
+        
+        # Rotate the surface
+        # Pygame rotates counter-clockwise, Box2D angle is in radians
+        # Need to negate angle for correct rotation
+        angle_degrees = -math.degrees(body.angle)
+        rotated = pygame.transform.rotate(surf, angle_degrees)
+        
+        # Get center position in world coords
+        world_x, world_y = body.position
+        
+        # Transform to screen coords
+        screen_x, screen_y = self._world_to_screen(world_x, world_y, game)
+        
+        # Get rotated rect to properly center it
+        rotated_rect = rotated.get_rect(center=(screen_x, screen_y))
+        
+        # Draw
+        self.screen.blit(rotated, rotated_rect)
     
     def _draw_body_parts(self, game):
         """
