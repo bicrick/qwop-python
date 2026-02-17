@@ -428,7 +428,7 @@ SPEED_ARRAY_MAX = 30  # Maximum samples in rolling average
 # Camera
 CAMERA_VERTICAL_THRESHOLD = -5  # Torso Y below this triggers vertical follow
 CAMERA_VERTICAL_OFFSET = -210  # Pixel offset for vertical camera
-CAMERA_HORIZONTAL_OFFSET = 0  # Default horizontal offset (configurable)
+CAMERA_HORIZONTAL_OFFSET = -14  # Matches original QWOP.js line 427 (was incorrectly 0 in docs)
 
 # Game state
 INITIAL_CAMERA_X = -10 * WORLD_SCALE  # -200 pixels

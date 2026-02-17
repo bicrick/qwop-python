@@ -67,7 +67,7 @@ class QWOPGame:
         # Camera state
         self.camera_x = INITIAL_CAMERA_X  # -200 pixels
         self.camera_y = INITIAL_CAMERA_Y  # -200 pixels
-        self.camera_offset = CAMERA_HORIZONTAL_OFFSET  # 0
+        self.camera_offset = CAMERA_HORIZONTAL_OFFSET  # -14
     
     def initialize(self):
         """
@@ -279,8 +279,9 @@ class QWOPGame:
         self.speed_array = []
         self.average_speed = 0.0
         
-        # Reset camera
-        self.camera_x = INITIAL_CAMERA_X
+        # Reset camera (matches JS behavior: sets to offset * worldScale, not initial position)
+        # Original QWOP.js line 849 sets: world_camera.get_pos().set_x(this.world_camera_offset * l.worldScale)
+        self.camera_x = CAMERA_HORIZONTAL_OFFSET * WORLD_SCALE
         self.camera_y = INITIAL_CAMERA_Y
         
         print("✓ Game reset complete")
