@@ -110,6 +110,13 @@ class ModelLoader:
         # Look for algorithm name in path
         for part in reversed(parts):
             part_upper = part.upper()
+            
+            # Special cases first
+            # DQNfD and EQRDQN both use QRDQN (EQRDQN is just QRDQN with PER)
+            if 'DQNFD' in part_upper or 'EQRDQN' in part_upper:
+                return 'QRDQN'
+            
+            # Check other algorithms
             for algo in ModelLoader.ALGORITHMS.keys():
                 if part_upper.startswith(algo):
                     return algo
