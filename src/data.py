@@ -432,7 +432,7 @@ CAMERA_HORIZONTAL_OFFSET = -14  # Matches original QWOP.js line 427 (was incorre
 
 # Game state
 INITIAL_CAMERA_X = -10 * WORLD_SCALE  # -200 pixels
-INITIAL_CAMERA_Y = -200
+INITIAL_CAMERA_Y = -65  # Positions track at ~280px screen Y for proper player/ground alignment
 
 # Camera bounds
 CAMERA_BOUNDS_LEFT = -1200
