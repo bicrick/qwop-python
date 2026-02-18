@@ -27,6 +27,10 @@ from data import (
     HURDLE_TOP_SIZE
 )
 
+# Track dimensions (matches JS floor segment: screenWidth x underground.height)
+TRACK_HEIGHT_PX = 64
+TRACK_TILE_WIDTH_PX = 640
+
 # Body part to playercolor.json frame index (matches JS create_player order)
 BODY_PART_TO_FRAME_INDEX = {
     'torso': 0,
@@ -154,14 +158,16 @@ class QWOPRenderer:
             self._player_frames = None
 
     def _load_background_textures(self):
-        """Load sprintbg, sky, sand, sandtape. Scale sprintbg to 640x400."""
+        """Load sprintbg, sky, sand, sandtape.
+        sprintbg.jpg is 1px wide (vertical gradient); scale sideways to 640x400 to match JS."""
         try:
             sprintbg_path = os.path.join(self._assets_dir, 'sprintbg.jpg')
             if os.path.exists(sprintbg_path):
                 tex = pygame.image.load(sprintbg_path).convert()
-                self._sprintbg_texture = pygame.transform.smoothscale(tex, (SCREEN_WIDTH, SCREEN_HEIGHT))
+                # JS uses size (640, 400), uv (0,0,640,400) - stretch 1px width across full screen
+                self._sprintbg_texture = pygame.transform.scale(tex, (SCREEN_WIDTH, SCREEN_HEIGHT))
         except pygame.error:
-            pass
+            self._sprintbg_texture = None
         try:
             sky_path = os.path.join(self._assets_dir, 'sky.png')
             if os.path.exists(sky_path):
@@ -203,13 +209,13 @@ class QWOPRenderer:
         Args:
             game: QWOPGame instance with current state
         """
-        # Clear screen (solid sky fallback if no sprintbg)
+        # sprintbg: 1px-wide vertical gradient, stretched to 640x400 (matches JS pos 0,-16)
         if self._sprintbg_texture is not None:
-            self.screen.blit(self._sprintbg_texture, (0, 0))
+            self.screen.blit(self._sprintbg_texture, (0, -16))
         else:
             self.screen.fill(self.colors['sky'])
 
-        # Draw layers in order: sky (world-scrolling), track, sand pit
+        # Draw layers: track, sand pit (sprintbg provides gradient background)
         self._draw_background(game)
         self._draw_hurdle(game)
         self._draw_body_parts(game)
@@ -218,68 +224,81 @@ class QWOPRenderer:
     
     def _draw_background(self, game):
         """
-        Draw background elements in JS order: sky (world-scrolling), track, sand pit.
-        Sky tiles horizontally; track uses tiled underground.png; sand pit at SAND_PIT_AT.
+        Draw background elements in JS order: track, sand pit.
+        sprintbg gradient (drawn first in render()) provides the sky/field atmosphere.
+        Sky.png is skipped - it uses skyShader in JS for blending; without that shader
+        it draws opaque and obscures the sprintbg gradient.
         """
-        # 1. Sky (world-scrolling, depth -11)
-        self._draw_sky(game)
-
-        # 2. Track (underground.png, depth -10)
+        # 1. Track (underground.png, depth -10)
         self._draw_track(game)
 
-        # 3. Sand pit (depth -2/-1, when in view)
+        # 2. Sand pit (depth -2/-1, when in view)
         self._draw_sand_pit(game)
 
-    def _draw_sky(self, game):
-        """Draw sky.png tiled horizontally, world-scrolling at (-620, -600)."""
-        if self._sky_texture is None:
-            return
-        sky_w, sky_h = self._sky_texture.get_size()
-        # JS position: (-31*worldScale, -30*worldScale) = (-620, -600)
-        base_screen_x = -620 - game.camera_x
-        base_screen_y = -600 - game.camera_y
-        # Step left until we cover the viewport's left edge
-        x = base_screen_x
-        while x + sky_w > 0 and x > -50000:
-            x -= sky_w
-        # Tile horizontally and vertically to cover viewport
-        while x < SCREEN_WIDTH:
-            y = base_screen_y
-            while y + sky_h > 0 and y > -50000:
-                y -= sky_h
-            while y < SCREEN_HEIGHT:
-                self.screen.blit(self._sky_texture, (int(x), int(y)))
-                y += sky_h
-            x += sky_w
-
     def _draw_track(self, game):
-        """Draw underground.png as tiled track at bottom of screen."""
-        track_width_meters = (SCREEN_WIDTH / WORLD_SCALE) + 200
-        track_height_px = 80
-        track_width_px = int(track_width_meters * WORLD_SCALE)
-        track_world_x = game.camera_x / WORLD_SCALE - 100
-        screen_x = (track_world_x * WORLD_SCALE) - game.camera_x
-        screen_y = SCREEN_HEIGHT - track_height_px
+        """
+        Draw track using underground.png segments (matches JS world_batcher floor sprites).
+        3 segments, each 640x(underground.height), positioned dynamically to stay under viewport.
+        JS formula: world_x = (floor(camera_x/640) + i) * 640, centered: true.
+        """
+        # Track center Y in world pixels: 10.74275 * WORLD_SCALE
+        track_center_y_px = 10.74275 * WORLD_SCALE
+        segment_w = TRACK_TILE_WIDTH_PX
+        segment_h = TRACK_HEIGHT_PX if self.track_texture is None else self.track_texture.get_height()
 
-        pygame.draw.rect(
-            self.screen,
-            self.colors['track'],
-            (screen_x, screen_y, track_width_px, track_height_px)
-        )
-        tex_w, tex_h = self.track_texture.get_size()
-        if tex_h != track_height_px:
-            scaled_tex = pygame.transform.smoothscale(
-                self.track_texture, (int(tex_w * track_height_px / tex_h), track_height_px)
-            )
-        else:
-            scaled_tex = self.track_texture
-        scaled_tex_w = scaled_tex.get_width()
-        phase = int((track_world_x * WORLD_SCALE) % scaled_tex_w)
-        start_x = screen_x - phase
-        x = start_x
-        while x < screen_x + track_width_px:
-            self.screen.blit(scaled_tex, (x, screen_y))
-            x += scaled_tex_w
+        for i in range(3):
+            # JS floor position formula (line 863)
+            world_x_px = (math.floor(game.camera_x / SCREEN_WIDTH) + i) * SCREEN_WIDTH
+            screen_x = world_x_px - game.camera_x
+            screen_y = track_center_y_px - game.camera_y
+
+            # Centered: true - blit with center at (screen_x, screen_y)
+            blit_left = int(screen_x - segment_w / 2)
+            blit_top = int(screen_y - segment_h / 2)
+
+            if self.track_texture is not None:
+                # Scale to segment size if texture differs (JS uv 0,0,640,height)
+                tex_w, tex_h = self.track_texture.get_size()
+                if tex_w != segment_w or tex_h != segment_h:
+                    scaled = pygame.transform.smoothscale(
+                        self.track_texture, (segment_w, segment_h)
+                    )
+                    self.screen.blit(scaled, (blit_left, blit_top))
+                else:
+                    self.screen.blit(self.track_texture, (blit_left, blit_top))
+            else:
+                pygame.draw.rect(
+                    self.screen,
+                    self.colors['track'],
+                    (blit_left, blit_top, segment_w, segment_h)
+                )
+
+        # Lane markers (Starting_Line from UISprites frame 17)
+        track_top_y = track_center_y_px - segment_h / 2 - game.camera_y
+        self._draw_lane_markers(game, int(track_top_y))
+
+    def _draw_lane_markers(self, game, track_y):
+        """Draw Starting_Line sprites at intervals along the track (UISprites frame 17)."""
+        if self._ui_atlas is None or self._ui_frames is None or len(self._ui_frames) <= 17:
+            return
+        fd = self._ui_frames[17]
+        fr = fd['frame']
+        rect = pygame.Rect(fr['x'], fr['y'], fr['w'], fr['h'])
+        surf = self._ui_atlas.subsurface(rect).copy()
+        # Scale to (37, 77) to match JS startingLine size
+        marker_w, marker_h = 37, 77
+        surf = pygame.transform.smoothscale(surf, (marker_w, marker_h))
+        spacing = 320  # World pixels between markers
+        # Draw markers at regular intervals; transform world x to screen
+        world_x = (game.camera_x // spacing) * spacing - spacing
+        while world_x < game.camera_x + SCREEN_WIDTH + spacing:
+            screen_x = world_x - game.camera_x
+            # track_y is track top (running surface); markers sit ON the track
+            marker_bottom = track_y
+            blit_y = marker_bottom - marker_h
+            if screen_x + marker_w > 0 and screen_x < SCREEN_WIDTH:
+                self.screen.blit(surf, (int(screen_x), int(blit_y)))
+            world_x += spacing
 
     def _draw_sand_pit(self, game):
         """Draw sand pit elements at SAND_PIT_AT when in view."""
