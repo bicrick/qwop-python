@@ -114,36 +114,27 @@ class QWOPContactListener(b2ContactListener):
         else:
             contactY = 0
         
-        # 4. Normalize ordering: check both A/B directions
-        # Original JS checks userDataB as body part, userDataA as track
-        # But Box2D may swap the order, so we check both
+        # 4. Match original QWOP fixture ordering exactly for 1:1 agent transfer
+        # Original: s=fixtureB.body, i=fixtureA.body, n=userDataB, r=userDataA
+        # Foot: ("leftFoot"==n || "rightFoot"==r) && "track"==r
+        #   -> requires userDataA=="track", and (userDataB=="leftFoot" OR userDataB=="rightFoot" when r=track)
+        #   -> When track==r (A=track): leftFoot==n catches B=leftFoot. rightFoot==r is always false (r=track).
+        #   -> Original ONLY catches (A=track, B=leftFoot). rightFoot is never caught.
+        # Fall: (rightForearm|leftForearm|rightArm|leftArm|head)==n && "track"==r
+        #   -> requires A=track, B=upper body part
         
-        body_part_data = None
-        track_data = None
-        body_part_body = None
-        track_body = None
-        
-        if userDataA == "track":
-            track_data = userDataA
-            track_body = bodyA
-            body_part_data = userDataB
-            body_part_body = bodyB
-        elif userDataB == "track":
-            track_data = userDataB
-            track_body = bodyB
-            body_part_data = userDataA
-            body_part_body = bodyA
-        
-        # If neither is track, not a relevant collision
-        if track_data != "track":
+        if userDataA != "track":
             return
         
-        # 5. FOOT + TRACK collision (running, jump, landing)
-        if body_part_data in ["leftFoot", "rightFoot"]:
-            self._handle_foot_contact(maxX, contactY)
+        userDataB_val = userDataB
+        body_part_body = bodyB
+        track_body = bodyA
         
-        # 6. UPPER BODY + TRACK collision (fall detection)
-        elif body_part_data in ["head", "leftArm", "rightArm", "leftForearm", "rightForearm"]:
+        # 5. FOOT + TRACK: original only handles (A=track, B=leftFoot)
+        if userDataB_val == "leftFoot":
+            self._handle_foot_contact(maxX, contactY)
+        # 6. UPPER BODY + TRACK: fall detection
+        elif userDataB_val in ["head", "leftArm", "rightArm", "leftForearm", "rightForearm"]:
             self._handle_fall_contact(maxX, contactY, body_part_body, track_body)
     
     def _handle_foot_contact(self, maxX, contactY):
@@ -161,8 +152,8 @@ class QWOPContactListener(b2ContactListener):
         """
         gs = self.game_state
         
-        # Skip if game is over or already fallen
-        if gs.game_over or gs.fallen:
+        # Skip if game ended or already fallen (original checks gameOver and fallen)
+        if gs.game_ended or gs.fallen:
             return
         
         # Jump detection (approaching sand pit)

@@ -21,7 +21,13 @@ from data import (
     TRACK_Y, TRACK_FRICTION, TRACK_DENSITY,
     CATEGORY_GROUND, MASK_ALL,
     LEVEL_SIZE, SCREEN_WIDTH,
-    BODY_PARTS, JOINTS
+    BODY_PARTS, JOINTS,
+    HURDLE_ENABLED,
+    HURDLE_BASE_POS, HURDLE_BASE_SIZE,
+    HURDLE_TOP_POS, HURDLE_TOP_SIZE,
+    HURDLE_BASE_CATEGORY, HURDLE_BASE_MASK,
+    HURDLE_TOP_CATEGORY, HURDLE_TOP_MASK,
+    DENSITY_FACTOR
 )
 
 
@@ -43,6 +49,10 @@ class PhysicsWorld:
         self.joints = {}  # Dict of joint name -> b2RevoluteJoint
         self.ground_body = None
         self.ground_segments = []  # List of all ground segment bodies
+        # Hurdle (optional, controlled by HURDLE_ENABLED)
+        self.hurdle_base = None
+        self.hurdle_top = None
+        self.hurdle_joint = None
         
     def create_world(self):
         """
@@ -117,6 +127,79 @@ class PhysicsWorld:
         self.ground_body = self.ground_segments[0]
         
         print(f"✓ Ground created: {num_segments} segments at y={TRACK_Y}")
+        
+    def create_hurdle(self):
+        """
+        Create hurdle obstacle at x=10000 pixels (500 meters).
+        
+        Two-part hurdle: base (static) on ground + top (dynamic) connected by
+        revolute joint. Top rotates when player hits it. Only created when
+        HURDLE_ENABLED is True.
+        """
+        if not HURDLE_ENABLED or self.world is None:
+            return
+        
+        # Convert pixel positions/sizes to Box2D world units (meters)
+        base_x = HURDLE_BASE_POS[0] / WORLD_SCALE
+        base_y = HURDLE_BASE_POS[1] / WORLD_SCALE
+        base_hw = HURDLE_BASE_SIZE[0] / (2 * WORLD_SCALE)
+        base_hh = HURDLE_BASE_SIZE[1] / (2 * WORLD_SCALE)
+        
+        top_x = HURDLE_TOP_POS[0] / WORLD_SCALE
+        top_y = HURDLE_TOP_POS[1] / WORLD_SCALE
+        top_hw = HURDLE_TOP_SIZE[0] / (2 * WORLD_SCALE)
+        top_hh = HURDLE_TOP_SIZE[1] / (2 * WORLD_SCALE)
+        
+        # Hurdle base - static body (fixed support)
+        base_def = b2BodyDef()
+        base_def.type = b2_staticBody
+        base_def.position = (base_x, base_y)
+        base_def.angle = 0
+        self.hurdle_base = self.world.CreateBody(base_def)
+        
+        base_shape = b2PolygonShape()
+        base_shape.SetAsBox(base_hw, base_hh)
+        base_fixture = b2FixtureDef()
+        base_fixture.shape = base_shape
+        base_fixture.friction = TRACK_FRICTION
+        base_fixture.restitution = 0
+        base_fixture.density = DENSITY_FACTOR
+        base_fixture.filter.categoryBits = HURDLE_BASE_CATEGORY
+        base_fixture.filter.maskBits = HURDLE_BASE_MASK
+        self.hurdle_base.CreateFixture(base_fixture)
+        self.hurdle_base.userData = "hurdleBase"
+        
+        # Hurdle top - dynamic body (rotates when hit)
+        top_def = b2BodyDef()
+        top_def.type = b2_dynamicBody
+        top_def.position = (top_x, top_y)
+        top_def.angle = 0
+        top_def.awake = False
+        self.hurdle_top = self.world.CreateBody(top_def)
+        
+        top_shape = b2PolygonShape()
+        top_shape.SetAsBox(top_hw, top_hh)
+        top_fixture = b2FixtureDef()
+        top_fixture.shape = top_shape
+        top_fixture.friction = TRACK_FRICTION
+        top_fixture.restitution = 0
+        top_fixture.density = DENSITY_FACTOR
+        top_fixture.filter.categoryBits = HURDLE_TOP_CATEGORY
+        top_fixture.filter.maskBits = HURDLE_TOP_MASK
+        self.hurdle_top.CreateFixture(top_fixture)
+        self.hurdle_top.userData = "hurdleTop"
+        
+        # Revolute joint: top pivots on base (local anchors from docs)
+        joint_def = b2RevoluteJointDef()
+        local_a = b2Vec2(3.6 / WORLD_SCALE, 74.6 / WORLD_SCALE)
+        world_anchor = self.hurdle_top.GetWorldPoint(local_a)
+        joint_def.Initialize(self.hurdle_top, self.hurdle_base, world_anchor)
+        joint_def.enableLimit = True
+        joint_def.lowerAngle = -3.14159 * 2  # Free rotation
+        joint_def.upperAngle = 3.14159 * 2
+        self.hurdle_joint = self.world.CreateJoint(joint_def)
+        
+        print(f"✓ Hurdle created at x={base_x * WORLD_SCALE:.0f}px")
         
     def create_body_part(self, name, config):
         """
@@ -390,6 +473,7 @@ class PhysicsWorld:
         print("Initializing QWOP physics world...")
         self.create_world()
         self.create_ground()
+        self.create_hurdle()
         self.create_bodies()
         self.create_joints()
         print("✓ Physics world initialization complete")
@@ -414,6 +498,17 @@ class PhysicsWorld:
         
         print("Resetting player...")
         
+        # 0. Destroy hurdle if present (recreated below when HURDLE_ENABLED)
+        if self.hurdle_joint is not None:
+            self.world.DestroyJoint(self.hurdle_joint)
+            self.hurdle_joint = None
+        if self.hurdle_top is not None:
+            self.world.DestroyBody(self.hurdle_top)
+            self.hurdle_top = None
+        if self.hurdle_base is not None:
+            self.world.DestroyBody(self.hurdle_base)
+            self.hurdle_base = None
+        
         # 1. Destroy all joints
         for joint in list(self.joints.values()):
             self.world.DestroyJoint(joint)
@@ -429,6 +524,9 @@ class PhysicsWorld:
         # 4. Recreate player bodies and joints
         self.create_bodies()
         self.create_joints()
+        
+        # 5. Recreate hurdle if enabled
+        self.create_hurdle()
         
         print("✓ Player reset complete")
         print(f"  Bodies: {len(self.bodies)}")

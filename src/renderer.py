@@ -19,7 +19,10 @@ from data import (
     WORLD_SCALE,
     SCREEN_WIDTH,
     SCREEN_HEIGHT,
-    TRACK_Y
+    TRACK_Y,
+    HURDLE_ENABLED,
+    HURDLE_BASE_SIZE,
+    HURDLE_TOP_SIZE
 )
 
 
@@ -95,6 +98,7 @@ class QWOPRenderer:
         
         # Draw layers in order
         self._draw_background(game)
+        self._draw_hurdle(game)
         self._draw_body_parts(game)
         self._draw_hud(game)
         self._draw_key_indicators(game)
@@ -124,6 +128,33 @@ class QWOPRenderer:
             self.colors['track'],
             (screen_x, screen_y, track_width_px, track_height_px)
         )
+    
+    def _draw_hurdle(self, game):
+        """
+        Draw hurdle obstacle when HURDLE_ENABLED.
+        
+        Args:
+            game: QWOPGame instance
+        """
+        if not HURDLE_ENABLED or game.physics.hurdle_base is None:
+            return
+        
+        hurdle_color = (80, 60, 40)  # Dark brown
+        for body, (width_px, height_px) in [
+            (game.physics.hurdle_base, HURDLE_BASE_SIZE),
+            (game.physics.hurdle_top, HURDLE_TOP_SIZE)
+        ]:
+            if body is None:
+                continue
+            
+            surf = pygame.Surface((int(width_px), int(height_px)), pygame.SRCALPHA)
+            surf.fill(hurdle_color)
+            angle_degrees = -math.degrees(body.angle)
+            rotated = pygame.transform.rotate(surf, angle_degrees)
+            world_x, world_y = body.position
+            screen_x, screen_y = self._world_to_screen(world_x, world_y, game)
+            rotated_rect = rotated.get_rect(center=(screen_x, screen_y))
+            self.screen.blit(rotated, rotated_rect)
     
     def _draw_body_parts(self, game):
         """

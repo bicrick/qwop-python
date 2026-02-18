@@ -142,11 +142,12 @@ def test_controls():
     assert rightKnee.motorSpeed == 2.5, f"Right knee should be 2.5, got {rightKnee.motorSpeed}"
     assert leftKnee.motorSpeed == -2.5, f"Left knee should be -2.5, got {leftKnee.motorSpeed}"
     
-    # Check hip limits
-    assert leftHip.lowerLimit == -1.0, f"Left hip lower should be -1.0, got {leftHip.lowerLimit}"
-    assert leftHip.upperLimit == 1.0, f"Left hip upper should be 1.0, got {leftHip.upperLimit}"
-    assert rightHip.lowerLimit == -1.3, f"Right hip lower should be -1.3, got {rightHip.lowerLimit}"
-    assert rightHip.upperLimit == 0.7, f"Right hip upper should be 0.7, got {rightHip.upperLimit}"
+    # Check hip limits (use tolerance for Box2D float precision)
+    eps = 0.001
+    assert abs(leftHip.lowerLimit - (-1.0)) < eps, f"Left hip lower should be -1.0, got {leftHip.lowerLimit}"
+    assert abs(leftHip.upperLimit - 1.0) < eps, f"Left hip upper should be 1.0, got {leftHip.upperLimit}"
+    assert abs(rightHip.lowerLimit - (-1.3)) < eps, f"Right hip lower should be -1.3, got {rightHip.lowerLimit}"
+    assert abs(rightHip.upperLimit - 0.7) < eps, f"Right hip upper should be 0.7, got {rightHip.upperLimit}"
     
     print(f"✓ O key knees: rightKnee={rightKnee.motorSpeed}, leftKnee={leftKnee.motorSpeed}")
     print(f"✓ O key hip limits: leftHip=({leftHip.lowerLimit}, {leftHip.upperLimit})")
@@ -165,11 +166,11 @@ def test_controls():
     assert rightKnee.motorSpeed == -2.5, f"Right knee should be -2.5, got {rightKnee.motorSpeed}"
     assert leftKnee.motorSpeed == 2.5, f"Left knee should be 2.5, got {leftKnee.motorSpeed}"
     
-    # Check different hip limits for P
-    assert leftHip.lowerLimit == -1.5, f"Left hip lower should be -1.5, got {leftHip.lowerLimit}"
-    assert leftHip.upperLimit == 0.5, f"Left hip upper should be 0.5, got {leftHip.upperLimit}"
-    assert rightHip.lowerLimit == -0.8, f"Right hip lower should be -0.8, got {rightHip.lowerLimit}"
-    assert rightHip.upperLimit == 1.2, f"Right hip upper should be 1.2, got {rightHip.upperLimit}"
+    # Check different hip limits for P (use tolerance for Box2D float precision)
+    assert abs(leftHip.lowerLimit - (-1.5)) < eps, f"Left hip lower should be -1.5, got {leftHip.lowerLimit}"
+    assert abs(leftHip.upperLimit - 0.5) < eps, f"Left hip upper should be 0.5, got {leftHip.upperLimit}"
+    assert abs(rightHip.lowerLimit - (-0.8)) < eps, f"Right hip lower should be -0.8, got {rightHip.lowerLimit}"
+    assert abs(rightHip.upperLimit - 1.2) < eps, f"Right hip upper should be 1.2, got {rightHip.upperLimit}"
     
     print(f"✓ P key knees: rightKnee={rightKnee.motorSpeed}, leftKnee={leftKnee.motorSpeed}")
     print(f"✓ P key hip limits: leftHip=({leftHip.lowerLimit}, {leftHip.upperLimit})")

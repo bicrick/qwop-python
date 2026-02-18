@@ -9,6 +9,7 @@ This is the "brain" of the game that owns the main update loop.
 
 import math
 
+from Box2D import b2Vec2
 from physics import PhysicsWorld
 from collision import GameState, QWOPContactListener
 from controls import ControlsHandler
@@ -175,9 +176,9 @@ class QWOPGame:
         for i, ground_body in enumerate(self.physics.ground_segments):
             new_x = (math.floor(self.camera_x / SCREEN_WIDTH) + i) * SCREEN_WIDTH / WORLD_SCALE
             
-            # Only update if position changed (avoids unnecessary updates)
-            if abs(new_x - ground_body.position[0]) > 0.001:
-                ground_body.position = (new_x, ground_body.position[1])
+            # Only update if position changed (original: r != o.getPosition().x)
+            if new_x != ground_body.position[0]:
+                ground_body.transform = (b2Vec2(new_x, ground_body.position[1]), ground_body.angle)
     
     def _update_camera(self):
         """
@@ -279,9 +280,8 @@ class QWOPGame:
         self.speed_array = []
         self.average_speed = 0.0
         
-        # Reset camera (matches JS behavior: sets to offset * worldScale, not initial position)
-        # Original QWOP.js line 849 sets: world_camera.get_pos().set_x(this.world_camera_offset * l.worldScale)
-        self.camera_x = CAMERA_HORIZONTAL_OFFSET * WORLD_SCALE
+        # Reset camera (original QWOP.js line 849: set_x(-10 * l.worldScale))
+        self.camera_x = INITIAL_CAMERA_X
         self.camera_y = INITIAL_CAMERA_Y
         
         print("✓ Game reset complete")

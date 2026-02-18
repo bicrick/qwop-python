@@ -23,6 +23,7 @@ import pygame
 # Add src to path for imports
 sys.path.insert(0, 'src')
 
+# Hurdle toggle: set HURDLE_ENABLED = True in src/data.py to add obstacle at 100m
 from game import QWOPGame
 from renderer import QWOPRenderer
 from data import SCREEN_WIDTH, SCREEN_HEIGHT

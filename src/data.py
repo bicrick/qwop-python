@@ -397,6 +397,8 @@ TRACK_DENSITY = 30  # Very heavy (static body)
 # Source: docs/QWOP_COMPLETE_DATA_REFERENCE.md
 # =============================================================================
 
+HURDLE_ENABLED = False  # Set True to add hurdle obstacle at x=10000 (toggle off by default)
+
 HURDLE_BASE_POS = (10000, 175.5)  # (x, y) in pixels
 HURDLE_BASE_SIZE = (67, 12)  # (width, height) in pixels
 HURDLE_TOP_POS = (10017.3, 101.15)  # (x, y) in pixels
