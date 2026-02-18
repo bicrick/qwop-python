@@ -264,12 +264,15 @@ class PhysicsWorld:
         bodyB = self.bodies[config['body_b']]
         
         # Create revolute joint definition
+        # Match JS exactly: use per-body world anchors (anchor_a for bodyA, anchor_b for bodyB)
+        # JS: localAnchorA = bodyA.getLocalPoint(anchor_a), localAnchorB = bodyB.getLocalPoint(anchor_b)
         jointDef = b2RevoluteJointDef()
-        
-        # Initialize with bodies and world anchor point
-        # Use anchor_a as the world anchor (both anchors are nearly identical)
-        world_anchor = b2Vec2(config['anchor_a'][0], config['anchor_a'][1])
-        jointDef.Initialize(bodyA, bodyB, world_anchor)
+        jointDef.bodyA = bodyA
+        jointDef.bodyB = bodyB
+        anchor_a = b2Vec2(config['anchor_a'][0], config['anchor_a'][1])
+        anchor_b = b2Vec2(config['anchor_b'][0], config['anchor_b'][1])
+        jointDef.localAnchorA = bodyA.GetLocalPoint(anchor_a)
+        jointDef.localAnchorB = bodyB.GetLocalPoint(anchor_b)
         
         # Set reference angle (CRITICAL for motor behavior)
         jointDef.referenceAngle = config['reference_angle']
