@@ -67,7 +67,7 @@ Joint Configuration:
 - maxMotorTorque: 6000 * torqueFactor
 - referenceAngle: 0.7258477508944043 rad (41.59°)
 
-Dynamic Limits:
+Dynamic Limits (both hips updated each frame when O or P is pressed):
 - Default: upperAngle=0.5, lowerAngle=-1.5
 - When O pressed: upperAngle=1.0, lowerAngle=-1.0
 - When P pressed: upperAngle=0.5, lowerAngle=-1.5
@@ -88,7 +88,7 @@ Joint Configuration:
 - maxMotorTorque: 6000 * torqueFactor
 - referenceAngle: -2.719359381718199 rad (-155.81°)
 
-Dynamic Limits:
+Dynamic Limits (both hips updated each frame when O or P is pressed):
 - Default: upperAngle=0.7, lowerAngle=-1.3
 - When O pressed: upperAngle=0.7, lowerAngle=-1.3
 - When P pressed: upperAngle=1.2, lowerAngle=-0.8

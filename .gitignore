@@ -5,5 +5,9 @@ __pycache__/
 *.pyo
 *.pyd
 
-# Data directory (logs, models, etc.)
-data/
+# Data directory (logs, etc.) - but keep data/saved_models for manual saves
+data/*
+!data/saved_models/
+
+# Autogen checkpoints
+models/
