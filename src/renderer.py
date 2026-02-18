@@ -73,6 +73,7 @@ class QWOPRenderer:
         # Fonts (sizes match JS mundo36/18; Verdana approximates mundo from Athletics.html)
         pygame.font.init()
         self.font = pygame.font.SysFont('verdana', 36, bold=True)
+        self.game_over_score_font = pygame.font.SysFont('verdana', 28, bold=True)  # Slightly smaller for end screen
         self.small_font = pygame.font.SysFont('verdana', 18)
         self.tiny_font = pygame.font.SysFont('verdana', 14)
         self.hud_secondary_font = pygame.font.SysFont('verdana', 18, bold=False)  # Best + Timer (match mundo18)
@@ -295,27 +296,32 @@ class QWOPRenderer:
         self._draw_lane_markers(game, int(track_top_y))
 
     def _draw_lane_markers(self, game, track_y):
-        """Draw Starting_Line sprites at intervals along the track (UISprites frame 17)."""
+        """Draw start line and best line only (matches JS: startingLine at 90, hsLine at highScore*10*worldScale)."""
         if self._ui_atlas is None or self._ui_frames is None or len(self._ui_frames) <= 17:
             return
         fd = self._ui_frames[17]
         fr = fd['frame']
         rect = pygame.Rect(fr['x'], fr['y'], fr['w'], fr['h'])
         surf = self._ui_atlas.subsurface(rect).copy()
-        # Scale to (37, 77) to match JS startingLine size
+        # Scale to (37, 77) to match JS startingLine size (spriteSourceSize.w, 0.7 * spriteSourceSize.h)
         marker_w, marker_h = 37, 77
         surf = pygame.transform.smoothscale(surf, (marker_w, marker_h))
-        spacing = 320  # World pixels between markers
-        # Draw markers at regular intervals; transform world x to screen
-        world_x = (game.camera_x // spacing) * spacing - spacing
-        while world_x < game.camera_x + SCREEN_WIDTH + spacing:
+        marker_bottom = track_y
+        blit_y = marker_bottom - marker_h
+
+        def _draw_marker_if_visible(world_x):
             screen_x = world_x - game.camera_x
-            # track_y is track top (running surface); markers sit ON the track
-            marker_bottom = track_y
-            blit_y = marker_bottom - marker_h
             if screen_x + marker_w > 0 and screen_x < SCREEN_WIDTH:
                 self.screen.blit(surf, (int(screen_x), int(blit_y)))
-            world_x += spacing
+
+        # Start line: JS startingLine at (90, 144) world pixels
+        start_line_world_x = 90
+        _draw_marker_if_visible(start_line_world_x)
+
+        # Best line: JS hsLine at highScore * 10 * worldScale when highScore > 0
+        if game.game_state.high_score > 0:
+            best_line_world_x = game.game_state.high_score * 10 * WORLD_SCALE
+            _draw_marker_if_visible(best_line_world_x)
 
     def _draw_sand_pit(self, game):
         """Draw sand pit elements at SAND_PIT_AT when in view."""
@@ -583,7 +589,7 @@ class QWOPRenderer:
                 self._blit_ui_frame(3, center_x, center_y, centered=True)  # FallenEnding
                 score_str = f"{game.game_state.score:.1f} metres"
                 self._draw_text_with_shadow(
-                    score_str, self.font, center_x, center_y,
+                    score_str, self.game_over_score_font, center_x, center_y,
                     self.colors['text'], center=True
                 )
             # Fallback text when atlas missing
