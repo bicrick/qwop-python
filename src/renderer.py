@@ -70,11 +70,12 @@ class QWOPRenderer:
         """
         self.screen = screen
         
-        # Fonts
+        # Fonts (sizes match JS mundo36/18; Verdana approximates mundo from Athletics.html)
         pygame.font.init()
-        self.font = pygame.font.SysFont('arial', 32, bold=True)
-        self.small_font = pygame.font.SysFont('arial', 20)
-        self.tiny_font = pygame.font.SysFont('arial', 14)
+        self.font = pygame.font.SysFont('verdana', 36, bold=True)
+        self.small_font = pygame.font.SysFont('verdana', 18)
+        self.tiny_font = pygame.font.SysFont('verdana', 14)
+        self.hud_secondary_font = pygame.font.SysFont('verdana', 18, bold=False)  # Best + Timer (match mundo18)
         
         # Colors (no purple per user rules)
         self.colors = {
@@ -186,6 +187,29 @@ class QWOPRenderer:
                 self._sandtape_texture = pygame.image.load(sandtape_path).convert_alpha()
         except pygame.error:
             pass
+        self._prepare_tiled_textures()
+
+    def _tile_texture(self, tex, target_w, target_h):
+        """Tile texture to fill target size (matches JS GL_REPEAT). Returns a Surface."""
+        tw, th = tex.get_size()
+        surf = pygame.Surface((target_w, target_h), pygame.SRCALPHA)
+        for y in range(0, target_h, th):
+            for x in range(0, target_w, tw):
+                surf.blit(tex, (x, y))
+        return surf
+
+    def _prepare_tiled_textures(self):
+        """Create cached tiled surfaces (matches JS set_clamp_s GL_REPEAT)."""
+        self._track_tiled = None
+        self._sand_tiled = None
+        self._sandtape_tiled = None
+        if self.track_texture is not None:
+            seg_h = self.track_texture.get_height()
+            self._track_tiled = self._tile_texture(self.track_texture, TRACK_TILE_WIDTH_PX, seg_h)
+        if self._sand_texture is not None:
+            self._sand_tiled = self._tile_texture(self._sand_texture, 2000, 25)
+        if self._sandtape_texture is not None:
+            self._sandtape_tiled = self._tile_texture(self._sandtape_texture, 2000, 14)
 
     def _load_ui_atlas(self):
         """Load UISprites.png and UISprites.json for sand pit elements."""
@@ -256,16 +280,9 @@ class QWOPRenderer:
             blit_left = int(screen_x - segment_w / 2)
             blit_top = int(screen_y - segment_h / 2)
 
-            if self.track_texture is not None:
-                # Scale to segment size if texture differs (JS uv 0,0,640,height)
-                tex_w, tex_h = self.track_texture.get_size()
-                if tex_w != segment_w or tex_h != segment_h:
-                    scaled = pygame.transform.smoothscale(
-                        self.track_texture, (segment_w, segment_h)
-                    )
-                    self.screen.blit(scaled, (blit_left, blit_top))
-                else:
-                    self.screen.blit(self.track_texture, (blit_left, blit_top))
+            if self._track_tiled is not None:
+                # Tiled texture (matches JS GL_REPEAT) - no stretching
+                self.screen.blit(self._track_tiled, (blit_left, blit_top))
             else:
                 pygame.draw.rect(
                     self.screen,
@@ -308,21 +325,15 @@ class QWOPRenderer:
         def to_screen(wx, wy):
             return (wx - game.camera_x, wy - game.camera_y)
 
-        # 1. sandpitTape (sandtape.png): pos (19916, 160), size 2000 x 14
-        if self._sandtape_texture is not None:
-            tw, th = self._sandtape_texture.get_size()
-            tape_w, tape_h = 2000, 14
-            scaled = pygame.transform.smoothscale(self._sandtape_texture, (tape_w, tape_h))
+        # 1. sandpitTape (sandtape.png): pos (19916, 160), size 2000 x 14 (JS GL_REPEAT)
+        if self._sandtape_tiled is not None:
             sx, sy = to_screen(SAND_PIT_AT - 84, 160)
-            self.screen.blit(scaled, (int(sx), int(sy)))
+            self.screen.blit(self._sandtape_tiled, (int(sx), int(sy)))
 
-        # 2. sandpitSandBody (sand.png): pos (19994, 176), size 2000 x 25
-        if self._sand_texture is not None:
-            sw, sh = self._sand_texture.get_size()
-            body_w, body_h = 2000, 25
-            scaled = pygame.transform.smoothscale(self._sand_texture, (body_w, body_h))
+        # 2. sandpitSandBody (sand.png): pos (19994, 176), size 2000 x 25 (JS GL_REPEAT)
+        if self._sand_tiled is not None:
             sx, sy = to_screen(SAND_PIT_AT - 6, 176)
-            self.screen.blit(scaled, (int(sx), int(sy)))
+            self.screen.blit(self._sand_tiled, (int(sx), int(sy)))
 
         # 3. sandpitSandHead (UISprites frame 24, 72x25): pos (20000, 188.5)
         if self._ui_atlas is not None and self._ui_frames is not None and len(self._ui_frames) > 24:
@@ -520,166 +531,144 @@ class QWOPRenderer:
         screen_x = (world_x * WORLD_SCALE) - game.camera_x
         screen_y = (world_y * WORLD_SCALE) - game.camera_y
         return (screen_x, screen_y)
+
+    def _blit_ui_frame(self, frame_idx, screen_x, screen_y, centered=True):
+        """
+        Blit a UI atlas frame at screen position.
+        Fallback: no-op if atlas/frames missing.
+
+        Args:
+            frame_idx: Index into _ui_frames array
+            screen_x: X position in pixels
+            screen_y: Y position in pixels
+            centered: If True, center the sprite at (screen_x, screen_y)
+        """
+        if self._ui_atlas is None or self._ui_frames is None or frame_idx >= len(self._ui_frames):
+            return
+        fd = self._ui_frames[frame_idx]
+        fr = fd['frame']
+        rect = pygame.Rect(fr['x'], fr['y'], fr['w'], fr['h'])
+        surf = self._ui_atlas.subsurface(rect).copy()
+        if centered:
+            blit_rect = surf.get_rect(center=(screen_x, screen_y))
+        else:
+            blit_rect = surf.get_rect(topleft=(screen_x, screen_y))
+        self.screen.blit(surf, blit_rect)
+
+    def _draw_black_overlay(self):
+        """Draw semi-transparent black overlay (0.6 alpha) over full screen."""
+        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 153))  # 0.6 * 255 ≈ 153
+        self.screen.blit(overlay, (0, 0))
     
     def _draw_hud(self, game):
         """
-        Draw HUD overlay: score, time, high score, game-over message.
+        Draw HUD overlay: score, time, high score, game-over/intro panels.
         
         Args:
             game: QWOPGame instance
         """
-        # Score (top center)
-        score_text = f"{game.game_state.score:.1f} metres"
-        self._draw_text_with_shadow(
-            score_text,
-            self.font,
-            SCREEN_WIDTH // 2,
-            30,
-            self.colors['text'],
-            center=True
-        )
-        
-        # Time (below score)
-        time_text = f"{game.score_time:.1f}s"
-        self._draw_text_with_shadow(
-            time_text,
-            self.small_font,
-            SCREEN_WIDTH // 2,
-            65,
-            self.colors['text'],
-            center=True
-        )
-        
-        # High score (top left, above thighs UI)
+        # Game over (FallenEnding or JumpEnding sprites + overlay)
+        if game.game_state.game_ended:
+            self._draw_black_overlay()
+            center_x, center_y = SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2
+            if game.game_state.jump_landed and not game.game_state.fallen:
+                self._blit_ui_frame(7, center_x, center_y, centered=True)  # JumpEnding
+                score_str = f"{game.game_state.score:.1f} metres in {int(game.score_time * 10) / 10:.1f} seconds"
+                self._draw_text_with_shadow(
+                    score_str, self.small_font, center_x, center_y + 22,
+                    self.colors['text'], center=True
+                )
+            else:
+                self._blit_ui_frame(3, center_x, center_y, centered=True)  # FallenEnding
+                score_str = f"{game.game_state.score:.1f} metres"
+                self._draw_text_with_shadow(
+                    score_str, self.font, center_x, center_y,
+                    self.colors['text'], center=True
+                )
+            # Fallback text when atlas missing
+            if self._ui_atlas is None:
+                msg = "SUCCESS!" if (game.game_state.jump_landed and not game.game_state.fallen) else "GAME OVER"
+                self._draw_text_with_shadow(msg, self.font, center_x, center_y - 40, self.colors['game_over'], center=True)
+            return
+
+        # Intro screen (before first click)
+        if not game.first_click:
+            self._draw_black_overlay()
+            self._blit_ui_frame(6, SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2, centered=True)  # Intro_clip
+            if self._ui_atlas is None:
+                self._draw_text_with_shadow(
+                    "Press any key to start", self.small_font,
+                    SCREEN_WIDTH // 2, SCREEN_HEIGHT - 100, self.colors['text'], center=True
+                )
+            return
+
+        # Normal HUD: Best (left), Score (center), Timer (right) - matches JS layout
         high_score_text = f"Best: {game.game_state.high_score:.1f}m"
         self._draw_text_with_shadow(
-            high_score_text,
-            self.small_font,
-            16,
-            10,
-            self.colors['text'],
-            right_align=False
+            high_score_text, self.hud_secondary_font, 34, 2,
+            self.colors['text'], center=False, right_align=False
         )
-        
-        # Game over message (center of screen)
-        if game.game_state.game_ended:
-            # Semi-transparent overlay
-            overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-            overlay.fill((0, 0, 0, 128))  # Black with 50% alpha
-            self.screen.blit(overlay, (0, 0))
-            
-            # Game over text
-            if game.game_state.jump_landed and not game.game_state.fallen:
-                message = "SUCCESS!"
-                sub_message = "You cleared the hurdle!"
-            else:
-                message = "GAME OVER"
-                sub_message = "You fell!"
-            
-            self._draw_text_with_shadow(
-                message,
-                self.font,
-                SCREEN_WIDTH // 2,
-                SCREEN_HEIGHT // 2 - 40,
-                self.colors['game_over'],
-                center=True
-            )
-            
-            self._draw_text_with_shadow(
-                sub_message,
-                self.small_font,
-                SCREEN_WIDTH // 2,
-                SCREEN_HEIGHT // 2,
-                self.colors['text'],
-                center=True
-            )
-            
-            # Final score
-            final_score = f"Distance: {game.game_state.score:.1f}m"
-            self._draw_text_with_shadow(
-                final_score,
-                self.small_font,
-                SCREEN_WIDTH // 2,
-                SCREEN_HEIGHT // 2 + 40,
-                self.colors['text'],
-                center=True
-            )
-            
-            # Reset instruction
-            reset_text = "Press 'R' to reset"
-            self._draw_text_with_shadow(
-                reset_text,
-                self.small_font,
-                SCREEN_WIDTH // 2,
-                SCREEN_HEIGHT // 2 + 80,
-                self.colors['text'],
-                center=True
-            )
-        
-        # Start instruction (before game starts)
-        elif not game.first_click:
-            start_text = "Press any key to start"
-            self._draw_text_with_shadow(
-                start_text,
-                self.small_font,
-                SCREEN_WIDTH // 2,
-                SCREEN_HEIGHT - 100,
-                self.colors['text'],
-                center=True
-            )
-    
+
+        score_text = f"{game.game_state.score:.1f} metres"
+        self._draw_text_with_shadow(
+            score_text, self.font, SCREEN_WIDTH // 2, 18,
+            self.colors['text'], center=True
+        )
+
+        time_text = f"{game.score_time:.1f}s"
+        self._draw_text_with_shadow(
+            time_text, self.hud_secondary_font, SCREEN_WIDTH - 22, 2,
+            self.colors['text'], center=False, right_align=True
+        )
+
+
     def _draw_key_indicators(self, game):
         """
         Draw Q/W/O/P key state indicators matching original QWOP layout.
         Q and W (THIGHS) on left; O and P (CALVES) on right.
-        
-        Args:
-            game: QWOPGame instance
+        Uses UISprites when atlas available; falls back to rect buttons.
         """
+        # JS positions: screenWidth/2=320, key_y=46.5
+        # Q: (320-274+0.5, 46.5)=(46.5, 46.5), W: +52 -> (98.5, 46.5)
+        # O: (320+274-52.5, 46.5)=(541.5, 46.5), P: (594.5, 46.5)
+        # Calves: (568, 85), Thighs: (72, 85)
+        if self._ui_atlas is not None and self._ui_frames is not None:
+            cx = SCREEN_WIDTH // 2
+            key_y = 46.5
+            self._blit_ui_frame(14 if not game.controls.q_down else 15, cx - 274 + 0.5, key_y, centered=True)  # Q
+            self._blit_ui_frame(19 if not game.controls.w_down else 20, cx - 274 + 52.5, key_y, centered=True)  # W
+            self._blit_ui_frame(10 if not game.controls.o_down else 11, cx + 274 - 52.5, key_y, centered=True)  # O
+            self._blit_ui_frame(12 if not game.controls.p_down else 13, cx + 274 + 0.5, key_y, centered=True)  # P
+            self._blit_ui_frame(18, cx - 248, 85, centered=True)   # Thighs label
+            self._blit_ui_frame(1, cx + 248, 85, centered=True)   # Calves label
+            return
+        # Fallback: programmatic buttons
         btn_size = 44
         btn_gap = 8
-        label_offset = 4
         margin = 16
-
-        # Left group: Q and W with THIGHS label (below best score)
         left_x = margin
         key_y = 42
-        thighs_keys = [
+        for key_char, is_pressed, x in [
             ('Q', game.controls.q_down, left_x),
             ('W', game.controls.w_down, left_x + btn_size + btn_gap),
-        ]
-        for key_char, is_pressed, x in thighs_keys:
+        ]:
             self._draw_key_button(key_char, is_pressed, x, key_y, btn_size)
-
-        thighs_center_x = left_x + btn_size + btn_gap // 2
-        thighs_center_y = key_y + btn_size + label_offset + 7
         self._draw_text_with_shadow(
-            "THIGHS",
-            self.tiny_font,
-            thighs_center_x,
-            thighs_center_y,
-            self.colors['text'],
-            center=True
+            "THIGHS", self.tiny_font,
+            left_x + btn_size + btn_gap // 2, key_y + btn_size + 11,
+            self.colors['text'], center=True
         )
-
-        # Right group: O and P with CALVES label
         right_start = SCREEN_WIDTH - margin - (btn_size * 2 + btn_gap)
-        calves_keys = [
+        for key_char, is_pressed, x in [
             ('O', game.controls.o_down, right_start),
             ('P', game.controls.p_down, right_start + btn_size + btn_gap),
-        ]
-        for key_char, is_pressed, x in calves_keys:
+        ]:
             self._draw_key_button(key_char, is_pressed, x, key_y, btn_size)
-
-        calves_center_x = right_start + btn_size + btn_gap // 2
-        calves_center_y = key_y + btn_size + label_offset + 7
         self._draw_text_with_shadow(
-            "CALVES",
-            self.tiny_font,
-            calves_center_x,
-            calves_center_y,
-            self.colors['text'],
-            center=True
+            "CALVES", self.tiny_font,
+            right_start + btn_size + btn_gap // 2, key_y + btn_size + 11,
+            self.colors['text'], center=True
         )
 
     def _draw_key_button(self, key_char, is_pressed, x, y, size):
@@ -721,16 +710,16 @@ class QWOPRenderer:
             center: If True, center text at (x, y)
             right_align: If True, right-align text at x
         """
-        # Draw shadow (offset by 2 pixels)
+        # Draw shadow (1px offset - subtle outline matching JS)
         shadow_surf = font.render(text, True, self.colors['text_shadow'])
         shadow_rect = shadow_surf.get_rect()
         
         if center:
-            shadow_rect.center = (x + 2, y + 2)
+            shadow_rect.center = (x + 1, y + 1)
         elif right_align:
-            shadow_rect.topright = (x + 2, y + 2)
+            shadow_rect.topright = (x + 1, y + 1)
         else:
-            shadow_rect.topleft = (x + 2, y + 2)
+            shadow_rect.topleft = (x + 1, y + 1)
         
         self.screen.blit(shadow_surf, shadow_rect)
         
