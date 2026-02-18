@@ -1,0 +1,27 @@
+# GPU stack for Ubuntu x86 + NVIDIA H100
+# Install: pip install -r requirements-gpu.txt
+# Verifies CUDA: python -c "import torch; print(torch.cuda.is_available())"
+
+--index-url https://download.pytorch.org/whl/cu128
+--extra-index-url https://pypi.org/simple
+
+# PyTorch with CUDA 12.8 (from index above)
+torch>=2.3.0
+torchvision
+torchaudio
+
+# Core dependencies
+pygame>=2.5.0
+Box2D>=2.3.10
+numpy>=1.24.0
+
+# RL training
+stable-baselines3>=2.0.0
+sb3-contrib>=2.0.0
+gymnasium>=0.29.0
+tensorboard>=2.0.0
+
+# Config and utilities
+pyyaml>=6.0
+tqdm>=4.65.0
+rich>=13.0.0
