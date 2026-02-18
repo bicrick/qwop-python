@@ -183,8 +183,8 @@ class QWOPGame:
         if not self.headless:
             self._update_camera()
         
-        # Step 10: Score calculation
-        if not self.game_state.jump_landed:
+        # Step 10: Score calculation (freeze when game ended to prevent shifting)
+        if not self.game_state.jump_landed and not self.game_state.game_ended:
             torso = self.physics.get_body('torso')
             if torso is not None:
                 self.game_state.score = round(torso.worldCenter[0]) / 10
