@@ -323,9 +323,8 @@ class QWOPGame:
         self.speed_array = []
         self.average_speed = 0.0
         
-        # Reset camera (matches JS behavior: sets to offset * worldScale, not initial position)
-        # Original QWOP.js line 849 sets: world_camera.get_pos().set_x(this.world_camera_offset * l.worldScale)
-        self.camera_x = CAMERA_HORIZONTAL_OFFSET * WORLD_SCALE
+        # Reset camera (matches JS line 849: set_x(-10 * l.worldScale))
+        self.camera_x = INITIAL_CAMERA_X
         self.camera_y = INITIAL_CAMERA_Y
         
         if self.verbose:

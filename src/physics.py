@@ -18,7 +18,7 @@ from Box2D import (
 from data import (
     GRAVITY, WORLD_SCALE, PHYSICS_TIMESTEP,
     VELOCITY_ITERATIONS, POSITION_ITERATIONS,
-    TRACK_Y, TRACK_FRICTION, TRACK_DENSITY,
+    TRACK_Y, TRACK_HALF_HEIGHT, TRACK_FRICTION, TRACK_DENSITY,
     CATEGORY_GROUND, MASK_ALL,
     LEVEL_SIZE, SCREEN_WIDTH,
     BODY_PARTS, JOINTS,
@@ -90,8 +90,8 @@ class PhysicsWorld:
         if self.world is None:
             raise RuntimeError("World must be created before ground")
         
-        # Create 4 segments to cover initial view plus extra
-        num_segments = 4
+        # Create 3 segments (matches JS: for (var h = 0; 3 > h;))
+        num_segments = 3
         segment_width = SCREEN_WIDTH / WORLD_SCALE
         
         # Clear ground segments list
@@ -109,9 +109,9 @@ class PhysicsWorld:
             # Create body
             body = self.world.CreateBody(bodyDef)
             
-            # Create box shape (very wide and thin)
+            # Create box shape (matches JS: sprite.size from underground.png 640x64)
             shape = b2PolygonShape()
-            shape.SetAsBox(segment_width / 2, 0.1)  # Half-width, half-height
+            shape.SetAsBox(segment_width / 2, TRACK_HALF_HEIGHT)
             
             # Create fixture with exact properties
             fixtureDef = b2FixtureDef()
