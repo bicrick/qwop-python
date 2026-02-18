@@ -389,6 +389,8 @@ CONTROL_P = {
 # =============================================================================
 
 TRACK_Y = 10.74275  # Y position in Box2D world units
+# Half-height from underground.png (64px): 64 / (2 * WORLD_SCALE) = 1.6m (matches JS Box component)
+TRACK_HALF_HEIGHT = 64 / (2 * WORLD_SCALE)
 TRACK_FRICTION = 0.2
 TRACK_DENSITY = 30  # Very heavy (static body)
 
