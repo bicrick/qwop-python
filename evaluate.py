@@ -43,6 +43,10 @@ ALGORITHMS = {
     'A2C': A2C,
 }
 
+# Spectate defaults (match qwop-gym reference)
+SPECTATE_STEPS_PER_STEP = 1   # 1 action per step
+SPECTATE_FRAMES_PER_STEP = 4  # each step = 4 physics frames
+
 
 def detect_algorithm(model_path):
     """
@@ -55,10 +59,12 @@ def detect_algorithm(model_path):
         Algorithm name (e.g., 'QRDQN')
     """
     path_str = str(model_path).upper()
+    # DQNfD and EnhancedQRDQN are QRDQN-based (load with QRDQN for qwop-gym models)
+    if 'DQNFD' in path_str or 'ENHANCEDQRDQN' in path_str or 'EQRDQN' in path_str:
+        return 'QRDQN'
     for algo_name in ALGORITHMS.keys():
         if algo_name in path_str:
             return algo_name
-    
     # Default to QRDQN
     print("Warning: Could not detect algorithm from path, defaulting to QRDQN")
     return 'QRDQN'
@@ -66,7 +72,7 @@ def detect_algorithm(model_path):
 
 def _run_episode_with_render(
     game, renderer, model, obs_extractor, action_mapper,
-    frames_per_step, max_steps, clock
+    steps_per_step, frames_per_step, max_steps, clock
 ):
     """Run one episode with pygame rendering. Returns episode stats dict."""
     import pygame
@@ -152,9 +158,11 @@ def evaluate(
     seed=42,
     render=False,
     max_episode_steps=1000,
+    steps_per_step=1,
     frames_per_step=4,
     reduced_action_set=True,
-    output_dir=None
+    output_dir=None,
+    algorithm=None
 ):
     """
     Evaluate a trained model over multiple episodes.
@@ -165,10 +173,12 @@ def evaluate(
         seed: Random seed for reproducibility
         render: Whether to render episodes
         max_episode_steps: Maximum steps per episode
+        steps_per_step: Actions per step (1 for spectate, matches qwop-gym)
         frames_per_step: Frames per step in environment
         reduced_action_set: Whether to use reduced action set
         output_dir: Directory to save results (optional)
-        
+        algorithm: Override algorithm (QRDQN, DQN, PPO, A2C). Default: detect from path
+
     Returns:
         Dictionary with evaluation statistics
     """
@@ -177,8 +187,8 @@ def evaluate(
     print("=" * 70)
     print()
     
-    # Detect algorithm
-    algo_name = detect_algorithm(model_path)
+    # Detect or use override for algorithm
+    algo_name = algorithm if algorithm is not None else detect_algorithm(model_path)
     print(f"Algorithm: {algo_name}")
     print(f"Model: {model_path}")
     print(f"Episodes: {n_episodes}")
@@ -203,7 +213,7 @@ def evaluate(
         renderer = QWOPRenderer(screen)
         obs_extractor = ObservationExtractor()
         action_mapper = ActionMapper(reduced_action_set=reduced_action_set)
-        print("✓ Render mode ready (frameskip=4, reduced action set)")
+        print("✓ Render mode ready (1 action/step, 4 frames/step, reduced action set)")
         print("  Press ESC to quit")
         print()
 
@@ -212,7 +222,7 @@ def evaluate(
             game.seed = seed + episode
             result = _run_episode_with_render(
                 game, renderer, model, obs_extractor, action_mapper,
-                frames_per_step, max_episode_steps, clock
+                steps_per_step, frames_per_step, max_episode_steps, clock
             )
             if result is None:
                 break
@@ -316,9 +326,7 @@ def evaluate(
             json.dump(results, f, indent=2)
         print(f"✓ Details saved to: {details_path}")
         print()
-    
-    env.close()
-    
+
     return stats, results
 
 
@@ -346,13 +354,19 @@ def main():
     parser.add_argument(
         '--render',
         action='store_true',
-        help='Render episodes (uses frameskip 4 and reduced action set)'
+        help='Render episodes (1 action/step, 4 frames/step, reduced action set)'
     )
     parser.add_argument(
         '--max-steps',
         type=int,
         default=1000,
         help='Maximum steps per episode (default: 1000)'
+    )
+    parser.add_argument(
+        '--steps-per-step',
+        type=int,
+        default=1,
+        help='Actions per step for spectate (default: 1, ignored when not --render)'
     )
     parser.add_argument(
         '--frames-per-step',
@@ -371,7 +385,14 @@ def main():
         default=None,
         help='Output directory for results (optional)'
     )
-    
+    parser.add_argument(
+        '--algo',
+        type=str,
+        default=None,
+        choices=list(ALGORITHMS.keys()),
+        help='Override algorithm (QRDQN, DQN, PPO, A2C). Default: detect from path'
+    )
+
     args = parser.parse_args()
     
     # Check model file exists
@@ -379,8 +400,9 @@ def main():
         print(f"Error: Model file not found: {args.model}")
         sys.exit(1)
 
-    # When rendering, enforce frameskip 4 and reduced action set (match training config)
-    frames_per_step = 4 if args.render else args.frames_per_step
+    # When rendering, enforce spectate defaults (1 action/step, 4 frames, reduced actions)
+    steps_per_step = SPECTATE_STEPS_PER_STEP if args.render else args.steps_per_step
+    frames_per_step = SPECTATE_FRAMES_PER_STEP if args.render else args.frames_per_step
     reduced_action_set = True if args.render else (not args.full_action_set)
 
     # Run evaluation
@@ -390,9 +412,11 @@ def main():
         seed=args.seed,
         render=args.render,
         max_episode_steps=args.max_steps,
+        steps_per_step=steps_per_step,
         frames_per_step=frames_per_step,
         reduced_action_set=reduced_action_set,
-        output_dir=args.output
+        output_dir=args.output,
+        algorithm=args.algo
     )
 
 
