@@ -8,6 +8,12 @@ Python 3.10+
 pip install -r requirements.txt
 ```
 
+If you are on a GPU instance, run the setup script to configure Git/SSH and install the GPU stack:
+
+```bash
+./scripts/setup.sh
+```
+
 ## Play
 
 ```bash
