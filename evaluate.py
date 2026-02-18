@@ -28,6 +28,11 @@ from sb3_contrib import QRDQN
 from stable_baselines3 import PPO, A2C, DQN
 
 from qwop_env import QWOPEnv
+from game import QWOPGame
+from renderer import QWOPRenderer
+from observations import ObservationExtractor
+from actions import ActionMapper
+from data import PHYSICS_TIMESTEP, SCREEN_WIDTH, SCREEN_HEIGHT
 
 
 # Algorithm registry
@@ -57,6 +62,50 @@ def detect_algorithm(model_path):
     # Default to QRDQN
     print("Warning: Could not detect algorithm from path, defaulting to QRDQN")
     return 'QRDQN'
+
+
+def _run_episode_with_render(
+    game, renderer, model, obs_extractor, action_mapper,
+    frames_per_step, max_steps, clock
+):
+    """Run one episode with pygame rendering. Returns episode stats dict."""
+    import pygame
+
+    game.reset(seed=game.seed)
+    game.start()
+    obs = obs_extractor.extract(game.physics)
+    total_reward = 0.0
+    steps = 0
+    done = False
+
+    while not done and steps < max_steps:
+        action, _ = model.predict(obs, deterministic=True)
+        action_mapper.apply_action(int(action), game.controls)
+
+        for _ in range(frames_per_step):
+            if game.game_state.game_ended:
+                break
+            game.update(dt=PHYSICS_TIMESTEP)
+            renderer.render(game)
+            pygame.display.flip()
+            clock.tick(30)
+            for e in pygame.event.get():
+                if e.type == pygame.QUIT or (e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE):
+                    return None  # User quit
+
+        obs = obs_extractor.extract(game.physics)
+        done = game.game_state.game_ended
+        steps += 1
+
+    return {
+        'distance': game.game_state.score,
+        'time': game.score_time,
+        'steps': steps,
+        'reward': total_reward,
+        'success': game.game_state.jump_landed and not game.game_state.fallen,
+        'fallen': game.game_state.fallen,
+        'jump_landed': game.game_state.jump_landed,
+    }
 
 
 def evaluate_episode(env, model, render=False, max_steps=1000):
@@ -142,29 +191,60 @@ def evaluate(
     model = AlgorithmClass.load(model_path)
     print("✓ Model loaded")
     print()
-    
-    # Create environment
-    print("Creating environment...")
-    env = QWOPEnv(
-        frames_per_step=frames_per_step,
-        reduced_action_set=reduced_action_set,
-        seed=seed
-    )
-    env = TimeLimit(env, max_episode_steps=max_episode_steps)
-    env = Monitor(env)
-    print("✓ Environment created")
-    print()
-    
-    # Run evaluation
-    print("Running evaluation...")
-    print()
-    
-    results = []
-    
-    for episode in tqdm(range(n_episodes), desc="Evaluating"):
-        result = evaluate_episode(env, model, render=render, max_steps=max_episode_steps)
-        results.append(result)
-    
+
+    if render:
+        import pygame
+        pygame.init()
+        screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+        pygame.display.set_caption("QWOP - Agent Evaluation")
+        clock = pygame.time.Clock()
+        game = QWOPGame(seed=seed, verbose=False, headless=False)
+        game.initialize()
+        renderer = QWOPRenderer(screen)
+        obs_extractor = ObservationExtractor()
+        action_mapper = ActionMapper(reduced_action_set=reduced_action_set)
+        print("✓ Render mode ready (frameskip=4, reduced action set)")
+        print("  Press ESC to quit")
+        print()
+
+        results = []
+        for episode in range(n_episodes):
+            game.seed = seed + episode
+            result = _run_episode_with_render(
+                game, renderer, model, obs_extractor, action_mapper,
+                frames_per_step, max_episode_steps, clock
+            )
+            if result is None:
+                break
+            results.append(result)
+            print(f"Episode {episode + 1}/{n_episodes}: {result['distance']:.1f}m, {result['time']:.2f}s, success={result['success']}")
+        pygame.quit()
+    else:
+        # Create environment
+        print("Creating environment...")
+        env = QWOPEnv(
+            frames_per_step=frames_per_step,
+            reduced_action_set=reduced_action_set,
+            seed=seed
+        )
+        env = TimeLimit(env, max_episode_steps=max_episode_steps)
+        env = Monitor(env)
+        print("✓ Environment created")
+        print()
+
+        # Run evaluation
+        print("Running evaluation...")
+        print()
+
+        results = []
+        for episode in tqdm(range(n_episodes), desc="Evaluating"):
+            result = evaluate_episode(env, model, render=False, max_steps=max_episode_steps)
+            results.append(result)
+        env.close()
+
+    if not results:
+        return {}, []
+
     # Calculate statistics
     distances = [r['distance'] for r in results]
     times = [r['time'] for r in results]
@@ -266,7 +346,7 @@ def main():
     parser.add_argument(
         '--render',
         action='store_true',
-        help='Render episodes (not implemented for headless env)'
+        help='Render episodes (uses frameskip 4 and reduced action set)'
     )
     parser.add_argument(
         '--max-steps',
@@ -298,7 +378,11 @@ def main():
     if not os.path.exists(args.model):
         print(f"Error: Model file not found: {args.model}")
         sys.exit(1)
-    
+
+    # When rendering, enforce frameskip 4 and reduced action set (match training config)
+    frames_per_step = 4 if args.render else args.frames_per_step
+    reduced_action_set = True if args.render else (not args.full_action_set)
+
     # Run evaluation
     evaluate(
         model_path=args.model,
@@ -306,8 +390,8 @@ def main():
         seed=args.seed,
         render=args.render,
         max_episode_steps=args.max_steps,
-        frames_per_step=args.frames_per_step,
-        reduced_action_set=not args.full_action_set,
+        frames_per_step=frames_per_step,
+        reduced_action_set=reduced_action_set,
         output_dir=args.output
     )
 

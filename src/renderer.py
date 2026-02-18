@@ -302,15 +302,15 @@ class QWOPRenderer:
             center=True
         )
         
-        # High score (top right)
+        # High score (top left, above thighs UI)
         high_score_text = f"Best: {game.game_state.high_score:.1f}m"
         self._draw_text_with_shadow(
             high_score_text,
             self.small_font,
-            SCREEN_WIDTH - 10,
+            16,
             10,
             self.colors['text'],
-            right_align=True
+            right_align=False
         )
         
         # Game over message (center of screen)
@@ -382,42 +382,83 @@ class QWOPRenderer:
     
     def _draw_key_indicators(self, game):
         """
-        Draw Q/W/O/P key state indicators at bottom of screen.
+        Draw Q/W/O/P key state indicators matching original QWOP layout.
+        Q and W (THIGHS) on left; O and P (CALVES) on right.
         
         Args:
             game: QWOPGame instance
         """
-        # Key positions (bottom of screen, evenly spaced)
-        key_y = SCREEN_HEIGHT - 40
-        key_spacing = 80
-        start_x = (SCREEN_WIDTH - (key_spacing * 3)) // 2
-        
-        keys = [
-            ('Q', game.controls.q_down, start_x),
-            ('W', game.controls.w_down, start_x + key_spacing),
-            ('O', game.controls.o_down, start_x + key_spacing * 2),
-            ('P', game.controls.p_down, start_x + key_spacing * 3)
+        btn_size = 44
+        btn_gap = 8
+        label_offset = 4
+        margin = 16
+
+        # Left group: Q and W with THIGHS label (below best score)
+        left_x = margin
+        key_y = 42
+        thighs_keys = [
+            ('Q', game.controls.q_down, left_x),
+            ('W', game.controls.w_down, left_x + btn_size + btn_gap),
         ]
-        
-        for key_char, is_pressed, x in keys:
-            # Draw key background
-            key_rect = pygame.Rect(x, key_y, 60, 30)
-            
-            # Color based on pressed state
-            if is_pressed:
-                bg_color = (100, 200, 100)  # Green when pressed
-                text_color = (0, 0, 0)       # Black text
-            else:
-                bg_color = (60, 60, 60)      # Dark gray when not pressed
-                text_color = (200, 200, 200) # Light gray text
-            
-            pygame.draw.rect(self.screen, bg_color, key_rect)
-            pygame.draw.rect(self.screen, (255, 255, 255), key_rect, 2)  # White border
-            
-            # Draw key letter
-            text_surf = self.small_font.render(key_char, True, text_color)
-            text_rect = text_surf.get_rect(center=key_rect.center)
-            self.screen.blit(text_surf, text_rect)
+        for key_char, is_pressed, x in thighs_keys:
+            self._draw_key_button(key_char, is_pressed, x, key_y, btn_size)
+
+        thighs_center_x = left_x + btn_size + btn_gap // 2
+        thighs_center_y = key_y + btn_size + label_offset + 7
+        self._draw_text_with_shadow(
+            "THIGHS",
+            self.tiny_font,
+            thighs_center_x,
+            thighs_center_y,
+            self.colors['text'],
+            center=True
+        )
+
+        # Right group: O and P with CALVES label
+        right_start = SCREEN_WIDTH - margin - (btn_size * 2 + btn_gap)
+        calves_keys = [
+            ('O', game.controls.o_down, right_start),
+            ('P', game.controls.p_down, right_start + btn_size + btn_gap),
+        ]
+        for key_char, is_pressed, x in calves_keys:
+            self._draw_key_button(key_char, is_pressed, x, key_y, btn_size)
+
+        calves_center_x = right_start + btn_size + btn_gap // 2
+        calves_center_y = key_y + btn_size + label_offset + 7
+        self._draw_text_with_shadow(
+            "CALVES",
+            self.tiny_font,
+            calves_center_x,
+            calves_center_y,
+            self.colors['text'],
+            center=True
+        )
+
+    def _draw_key_button(self, key_char, is_pressed, x, y, size):
+        """Draw a single key button with embossed/physical look."""
+        key_rect = pygame.Rect(x, y, size, size)
+
+        if is_pressed:
+            bg_color = (140, 140, 140)   # Depressed
+            text_color = (60, 60, 60)
+        else:
+            bg_color = (180, 180, 180)   # Light gray, raised
+            text_color = (80, 80, 80)
+
+        # Main fill
+        pygame.draw.rect(self.screen, bg_color, key_rect)
+        # Border for physical button look
+        border_color = (220, 220, 220) if not is_pressed else (120, 120, 120)
+        pygame.draw.rect(self.screen, border_color, key_rect, 1)
+        # Top-left highlight for embossed look
+        if not is_pressed:
+            pygame.draw.line(self.screen, (230, 230, 230), (x, y), (x + size, y), 1)
+            pygame.draw.line(self.screen, (230, 230, 230), (x, y), (x, y + size), 1)
+
+        # Key letter
+        text_surf = self.font.render(key_char, True, text_color)
+        text_rect = text_surf.get_rect(center=key_rect.center)
+        self.screen.blit(text_surf, text_rect)
     
     def _draw_text_with_shadow(self, text, font, x, y, color, center=False, right_align=False):
         """
