@@ -74,11 +74,11 @@ def main():
     print("W - Left thigh forward, right thigh back")
     print("O - Right calf forward, left calf back")
     print("P - Left calf forward, right calf back")
-    print("R - Reset game")
+    print("R or Space - Reset game")
     print("ESC - Quit")
     print("=" * 70)
     print()
-    print("Press any movement key (Q/W/O/P) to start!")
+    print("Click or press Q/W/O/P to start!")
     print()
 
     # Main game loop
@@ -96,6 +96,11 @@ def main():
                 if event.type == pygame.QUIT:
                     running = False
 
+                # Mouse click (click to begin)
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    if not game.first_click:
+                        game.start()
+
                 # Key press
                 elif event.type == pygame.KEYDOWN:
                     # Movement keys (Q/W/O/P)
@@ -106,8 +111,8 @@ def main():
                         if not game.first_click:
                             game.start()
 
-                    # Reset key (R)
-                    elif event.key == pygame.K_r:
+                    # Reset keys (R or Space)
+                    elif event.key in (pygame.K_r, pygame.K_SPACE):
                         game.reset()
 
                     # Quit key (ESC)

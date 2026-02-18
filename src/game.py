@@ -64,6 +64,7 @@ class QWOPGame:
         # Game state flags
         self.pause = False
         self.first_click = False  # Set to True when game starts
+        self.help_up = False  # Help overlay visible (pauses game)
         
         # Timing
         self.score_time = 0.0  # Time elapsed in seconds
@@ -120,6 +121,11 @@ class QWOPGame:
             self.first_click = True
             if self.verbose:
                 print("✓ Game started!")
+
+    def toggle_help(self):
+        """Toggle help overlay. When shown, pauses the game."""
+        self.help_up = not self.help_up
+        self.pause = self.help_up
     
     def update(self, dt):
         """
@@ -261,7 +267,6 @@ class QWOPGame:
                 print("Status: Fell")
             
             print("=" * 70)
-            print("Press 'R' to reset")
             print()
     
     def reset(self, seed=None):
@@ -312,9 +317,10 @@ class QWOPGame:
         # Update contact listener to use new game state
         self.contact_listener.game_state = self.game_state
         
-        # Reset game flags
+        # Reset game flags (keep first_click True - user already started, don't show intro again)
         self.pause = False
-        self.first_click = False
+        self.first_click = True
+        self.help_up = False
         
         # Reset timing
         self.score_time = 0.0
