@@ -444,11 +444,10 @@ class PhysicsWorld:
     def step(self, dt=None):
         """
         Advance physics simulation by one timestep.
-        
+
         Args:
-            dt: Timestep in seconds (defaults to PHYSICS_TIMESTEP = 0.04)
-            
-        Uses fixed timestep of 0.04s (25 FPS physics) for deterministic simulation.
+            dt: Timestep in seconds (defaults to PHYSICS_TIMESTEP = 0.04).
+                Gym env uses 1/30 to match qwop-wr extensions.js TIMESTEP_SIZE.
         """
         if self.world is None:
             raise RuntimeError("World must be created before stepping")

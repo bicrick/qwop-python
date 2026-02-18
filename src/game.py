@@ -146,9 +146,9 @@ class QWOPGame:
         # Step 6: Control input processing
         self.controls.apply()
         
-        # Step 8: Physics simulation step (fixed 0.04s timestep)
+        # Step 8: Physics simulation step (dt from caller; 1/30 to match OG extensions.js)
         if self.first_click and not self.pause:
-            self.physics.step()
+            self.physics.step(dt)
         
         # Step 9: Camera follow logic
         self._update_camera()
