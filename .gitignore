@@ -5,6 +5,7 @@ __pycache__/
 *.pyo
 *.pyd
 *.egg-info/
+qwop-python.egg-info/
 
 # Data directory (logs, etc.) - but keep data/saved_models for manual saves
 data/*
