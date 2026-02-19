@@ -1,0 +1,75 @@
+---
+# Optimized QRDQN config for World Record (100m+) attempt
+# Based on successful W&B runs that achieved 100m+ in <6 seconds
+
+# [int] (optional) Env seed (auto-generated if blank)
+seed: ~
+
+# [string] (optional) Unique ID of this run (auto-generated if blank)
+run_id: ~
+
+# [string] (optional) Continue training of a previously trained model
+model_load_file: ~
+
+# [string] Directory template to save the trained model, metadata and
+# tensorboard logs. If the template contains {run_id} or {seed} placeholders,
+# they will be replaced with the corresponding runtime values.
+out_dir_template: "data/QRDQN-WR-{run_id}"
+
+# [bool] Log tensorboard data
+log_tensorboard: true
+
+# [int] Training duration - increased from 1M to 32M for world record attempts
+# The successful W&B runs used 32M timesteps
+total_timesteps: 32_000_000
+
+# [int] (optional) Force env termination on the Nth step of an episode
+# Reduced from 2000 to 1000 - shorter episodes encourage faster runs
+max_episode_steps: 1000
+
+# [int] Number of times the model will be saved during training
+# Increased checkpoints for longer training
+n_checkpoints: 50
+
+# [int] Number of parallel environments (each spawns a browser)
+# Increases data collection speed proportionally (8x faster)
+# Resource usage: ~8 Chrome instances + ~8 chromedriver processes
+# Expected: ~16000 obs/sec vs ~2000 obs/sec with single env
+n_envs: 8
+
+# QRDQN algorithm parameters optimized for world record
+# Key changes from default:
+# - target_update_interval: 512 (vs 100000) - MUCH more frequent updates
+# - gamma: 0.997 (vs 0.995) - higher discount for long-term rewards
+# - exploration_initial_eps: 0.2 (vs 0.01) - more exploration early
+# - exploration_fraction: 0.3 (vs 0.5) - faster exploration decay
+# https://sb3-contrib.readthedocs.io/en/master/modules/qrdqn.html#sb3_contrib.qrdqn.QRDQN
+learner_kwargs:
+  policy: "MlpPolicy"
+  buffer_size: 100000
+  learning_starts: 100000
+  batch_size: 64
+  tau: 1.0
+  gamma: 0.997  # Increased from 0.995 - values future rewards more
+  train_freq: 4
+  gradient_steps: 1
+  target_update_interval: 512  # CRITICAL: Reduced from 100000 to 512 for faster learning
+  exploration_fraction: 0.3  # Reduced from 0.5 - faster exploration decay
+  exploration_initial_eps: 0.2  # Increased from 0.01 - more initial exploration
+  exploration_final_eps: 0
+
+# Learning rate schedule - using constant 0.001 (lower than default 0.003)
+# This provides more stable learning over the long training period
+learner_lr_schedule: "const_0.001"
+
+# Env parameters
+# The special "__include__" key allows to load them from another file.
+# Keys listed here take precedence over keys loaded with __include__.
+env_kwargs:
+  __include__: "config/env.yml"
+  frames_per_step: 4
+  reduced_action_set: true  # CRITICAL: Reduced from 16 to 9 actions - removes redundant combos
+  text_in_browser: "Training for World Record (100m+)..."
+
+# List of gym wrappers to use for the env
+env_wrappers: []

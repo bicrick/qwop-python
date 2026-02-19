@@ -170,19 +170,22 @@ class QWOPContactListener(b2ContactListener):
         # Jump detection (approaching sand pit)
         if not gs.jumped and maxX * WORLD_SCALE > (SAND_PIT_AT - JUMP_TRIGGER_OFFSET):
             gs.jumped = True
-            print(f"✓ Jump triggered at x={maxX * WORLD_SCALE:.1f}")
-        
+            if self.verbose:
+                print(f"Jump triggered at x={maxX * WORLD_SCALE:.1f}")
+
         # Landing detection (in sand pit)
         if gs.jumped and not gs.jump_landed:
             if maxX * WORLD_SCALE > SAND_PIT_AT:
                 gs.jump_landed = True
-                print(f"✓ Landing detected at x={maxX * WORLD_SCALE:.1f}")
-                
+                if self.verbose:
+                    print(f"Landing detected at x={maxX * WORLD_SCALE:.1f}")
+
                 # Update score
                 gs.score = round(maxX) / 10
                 if gs.score > gs.high_score:
                     gs.high_score = gs.score
-                    print(f"✓ New high score: {gs.high_score:.1f}m")
+                    if self.verbose:
+                        print(f"New high score: {gs.high_score:.1f}m")
     
     def _handle_fall_contact(self, maxX, contactY, body_part_body, track_body):
         """

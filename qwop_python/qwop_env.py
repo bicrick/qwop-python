@@ -194,26 +194,33 @@ class QWOPEnv(gymnasium.Env):
     def _calc_reward(self):
         """
         Calculate reward based on velocity and time cost.
-        
+
+        Uses protocol-scale dt to match qwop-wr (browser env) exactly. qwop-wr sends
+        time = scoreTime/10 where scoreTime advances by stepsize*(1/30) per step.
+        Python uses real physics seconds (0.04 per tick), so we use dt_protocol instead
+        of raw dt for 1-to-1 reward parity.
+
         Reward = velocity - time_cost + terminal_bonus
         where:
-          velocity = (distance - last_distance) / (time - last_time)
-          time_cost = time_cost_mult * dt / frames_per_step
+          velocity = (distance - last_distance) / dt_protocol
+          time_cost = time_cost_mult * dt_protocol / frames_per_step
+          dt_protocol = frames_per_step * (1/30) / 10  (matches qwop-wr extensions.js)
           terminal_bonus = success_reward if success, -failure_cost if fall
-        
+
         Returns:
             Float reward value
         """
-        # Get current distance and time
         dist = self.game.game_state.score  # metres (torso x / 10)
-        t = self.game.score_time  # seconds
-        
-        # Calculate velocity
-        dt = max(t - self._last_time, 1e-8)  # Avoid division by zero
-        velocity = (dist - self._last_distance) / dt
-        
-        # Base reward: velocity (scaled) minus time cost
-        reward = velocity * self.speed_rew_mult - (self.time_cost_mult * dt / self.frames_per_step)
+        ds = dist - self._last_distance
+
+        # Protocol-scale dt: matches qwop-wr (TIMESTEP_SIZE=1/30, time=scoreTime/10)
+        dt_protocol = self.frames_per_step * (1 / 30) / 10
+        dt_protocol = max(dt_protocol, 1e-8)
+
+        velocity = ds / dt_protocol
+        reward = velocity * self.speed_rew_mult - (
+            self.time_cost_mult * dt_protocol / self.frames_per_step
+        )
         
         # Terminal bonuses/penalties
         if self.game.game_state.game_ended:
@@ -224,10 +231,8 @@ class QWOPEnv(gymnasium.Env):
                 # Fell
                 reward -= self.failure_cost
         
-        # Update tracking for next step
         self._last_distance = dist
-        self._last_time = t
-        
+
         return float(reward)
     
     def _build_info(self):

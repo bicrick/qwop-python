@@ -17,7 +17,7 @@ out_dir_template: "data/PPO-{run_id}"
 log_tensorboard: true
 
 # [int] Training duration (set to a minimum of 10-20M for PPO)
-total_timesteps: 100_000
+total_timesteps: 1_000_000
 
 # [int] (optional) Force env termination on the Nth step of an episode
 max_episode_steps: 5000

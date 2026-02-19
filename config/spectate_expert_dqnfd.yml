@@ -1,6 +1,6 @@
 ---
 # 30 fps = original game display rate (physics is 25 Hz)
-fps: 30
+fps: 60
 reset_delay: 1
 
 model_file: "data/saved_models/expert_dqnfd.zip"
