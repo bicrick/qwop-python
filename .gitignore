@@ -1,9 +1,10 @@
 # Python cache
-src/__pycache__/
+.DS_Store
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
+*.egg-info/
 
 # Data directory (logs, etc.) - but keep data/saved_models for manual saves
 data/*
