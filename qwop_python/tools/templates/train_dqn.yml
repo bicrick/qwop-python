@@ -1,0 +1,55 @@
+---
+# [int] (optional) Env seed (auto-generated if blank)
+seed: ~
+
+# [string] (optional) Unique ID of this run (auto-generated if blank)
+run_id: ~
+
+# [string] (optional) Continue training of a previously trained model
+model_load_file: ~
+
+# [string] Directory template to save the trained model, metadata and
+# tensorboard logs. If the template contains {run_id} or {seed} placeholders,
+# they will be replaced with the corresponding runtime values.
+out_dir_template: "data/DQN-{run_id}"
+
+# [bool] Log tensorboard data
+log_tensorboard: true
+
+# [int] Training duration (set to a minimum of 20M for DQN)
+total_timesteps: 200000
+
+# [int] (optional) Force env termination on the Nth step of an episode
+max_episode_steps: 5000
+
+# [int] Number of times the model will be saved during training
+# Example: 5 means save at 20%, 40%, 60%, 80% and 100% progress
+n_checkpoints: 5
+
+# DQN algorithm parameters (used only if model_load_file is blank)
+# https://stable-baselines3.readthedocs.io/en/master/modules/dqn.html
+learner_kwargs:
+  policy: "MlpPolicy"
+  buffer_size: 100000
+  learning_starts: 100000
+  batch_size: 64
+  tau: 1.0
+  gamma: 0.995
+  train_freq: 4
+  gradient_steps: 1
+  target_update_interval: 100000
+  exploration_fraction: 0.01
+  exploration_initial_eps: 1
+  exploration_final_eps: 0.01
+
+# (string) Schedule for the learning_rate. Format: const_V0 | lin_decay_V0_V1_F | exp_decay_V0_V1_F_N
+learner_lr_schedule: "const_0.003"
+
+# Env parameters. __include__ loads from config/env.yml; keys here override.
+env_kwargs:
+  __include__: "config/env.yml"
+  frames_per_step: 4
+  reduced_action_set: false
+
+# List of gym wrappers to use for the env
+env_wrappers: []
