@@ -1,3 +1,3 @@
-from .dqnfd_callback import DQNfDCallback
+"""SB3 callbacks for QWOP training."""
 
-__all__ = ["DQNfDCallback"]
+__all__ = []

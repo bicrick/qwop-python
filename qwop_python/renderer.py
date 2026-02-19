@@ -21,15 +21,33 @@ from .data import (
     WORLD_SCALE,
     SCREEN_WIDTH,
     SCREEN_HEIGHT,
+    OBS_PANEL_WIDTH,
     SAND_PIT_AT,
     HURDLES_ENABLED,
     HURDLE_BASE_SIZE,
     HURDLE_TOP_SIZE
 )
+from .observations import ObservationExtractor
 
 # Track dimensions (matches JS floor segment: screenWidth x underground.height)
 TRACK_HEIGHT_PX = 64
 TRACK_TILE_WIDTH_PX = 640
+
+# Body part key -> display label (matches qwop-gym QWOP.html)
+BODY_PART_DISPLAY_LABELS = {
+    'torso': 'Torso',
+    'head': 'Head',
+    'leftArm': 'Left Arm',
+    'leftCalf': 'Left Calf',
+    'leftFoot': 'Left Foot',
+    'leftForearm': 'Left Forearm',
+    'leftThigh': 'Left Thigh',
+    'rightArm': 'Right Arm',
+    'rightCalf': 'Right Calf',
+    'rightFoot': 'Right Foot',
+    'rightForearm': 'Right Forearm',
+    'rightThigh': 'Right Thigh',
+}
 
 # Body part to playercolor.json frame index (matches JS create_player order)
 BODY_PART_TO_FRAME_INDEX = {
@@ -76,6 +94,8 @@ class QWOPRenderer:
         self.game_over_score_font = pygame.font.SysFont('verdana', 28, bold=True)  # Slightly smaller for end screen
         self.small_font = pygame.font.SysFont('verdana', 18)
         self.tiny_font = pygame.font.SysFont('verdana', 14)
+        self.summary_font = pygame.font.SysFont('verdana', 14)  # matches qwop-gym #summary
+        self.table_font = pygame.font.SysFont('verdana', 12)  # matches qwop-gym #metrics
         self.hud_secondary_font = pygame.font.SysFont('verdana', 18, bold=False)  # Best + Timer (match mundo18)
         
         # Colors (no purple per user rules)
@@ -230,22 +250,107 @@ class QWOPRenderer:
     def render(self, game):
         """
         Main render method - draws complete frame.
-        
+
         Args:
             game: QWOPGame instance with current state
         """
-        # sprintbg: 1px-wide vertical gradient, stretched to 640x400 (matches JS pos 0,-16)
         if self._sprintbg_texture is not None:
             self.screen.blit(self._sprintbg_texture, (0, -16))
         else:
             self.screen.fill(self.colors['sky'])
 
-        # Draw layers: track, sand pit (sprintbg provides gradient background)
         self._draw_background(game)
         self._draw_hurdle(game)
         self._draw_body_parts(game)
         self._draw_hud(game)
         self._draw_key_indicators(game)
+
+    def draw_observation_panel(self, screen, x, y, raw_obs, info):
+        """
+        Draw observation/stats panel matching qwop-gym QWOP.html layout one-to-one.
+
+        Summary: 4 cols x 25% (100px), labels right-align, values left-align
+        Metrics: observation col 25% (100px), 5 numeric cols 15% (60px) each, right-align values
+        """
+        import time as time_module
+        panel_w = OBS_PANEL_WIDTH
+        panel_h = SCREEN_HEIGHT
+        pygame.draw.rect(screen, (40, 40, 40), (x, y, panel_w, panel_h))
+        pygame.draw.rect(screen, (80, 80, 80), (x, y, panel_w, panel_h), 1)
+
+        pad = 5
+        row_y = y + pad
+
+        def _toclock(s):
+            """Format seconds as MM:SS.N (matches qwop-gym extensions.js)"""
+            m = int(s // 60)
+            sec = int(s % 60)
+            tenth = int((s - int(s)) * 10) % 10
+            return "%02d:%02d.%d" % (m, sec, tenth)
+
+        def _cell_text(text, cx, cy, cell_w, font=None, color=(255, 255, 255), align="left"):
+            f = font or self.table_font
+            surf = f.render(str(text), True, color)
+            if align == "right":
+                px = cx + cell_w - surf.get_width() - pad
+            elif align == "center":
+                px = cx + (cell_w - surf.get_width()) // 2
+            else:
+                px = cx
+            screen.blit(surf, (px, cy))
+
+        # Summary table (matches qwop-gym #summary: td.name 25%, td.value 25%, 14px)
+        cell_w = 100  # 25% of 400
+        steps = info.get("episode_steps", 0)
+        tot_rew = info.get("total_reward", 0)
+        avgspeed = info.get("avgspeed", 0)
+        distance = info.get("distance", 0)
+        _cell_text("Steps:", x + pad, row_y, cell_w, self.summary_font, (220, 220, 220), "right")
+        _cell_text(str(steps), x + pad + cell_w, row_y, cell_w, self.summary_font, align="left")
+        _cell_text("Reward:", x + pad + cell_w * 2, row_y, cell_w, self.summary_font, (220, 220, 220), "right")
+        _cell_text("%.2f" % tot_rew, x + pad + cell_w * 3, row_y, cell_w, self.summary_font, align="left")
+        row_y += 16
+        _cell_text("Speed:", x + pad, row_y, cell_w, self.summary_font, (220, 220, 220), "right")
+        _cell_text("%.1f m/s" % avgspeed, x + pad + cell_w, row_y, cell_w, self.summary_font, align="left")
+        _cell_text("Distance:", x + pad + cell_w * 2, row_y, cell_w, self.summary_font, (220, 220, 220), "right")
+        _cell_text("%.1f m" % distance, x + pad + cell_w * 3, row_y, cell_w, self.summary_font, align="left")
+        row_y += 16
+        real_elapsed = time_module.time() - info.get("episode_start_time", 0)
+        game_time = info.get("time", 0)
+        _cell_text("Real time:", x + pad, row_y, cell_w, self.summary_font, (220, 220, 220), "right")
+        _cell_text(_toclock(real_elapsed), x + pad + cell_w, row_y, cell_w, self.summary_font, align="left")
+        _cell_text("Game time:", x + pad + cell_w * 2, row_y, cell_w, self.summary_font, (220, 220, 220), "right")
+        _cell_text(_toclock(game_time), x + pad + cell_w * 3, row_y, cell_w, self.summary_font, align="left")
+        row_y += 26  # spacer-row padding-top 10px + row height
+
+        # Metrics header (qwop-gym: first cell white/black, others black/white, all center)
+        obs_col_w = 100  # 25%
+        num_col_w = 60   # 15%
+        header_h = 18
+        pygame.draw.rect(screen, (255, 255, 255), (x, row_y, obs_col_w, header_h))
+        _cell_text("observation", x, row_y, obs_col_w, self.table_font, (0, 0, 0), "center")
+        pygame.draw.rect(screen, (0, 0, 0), (x + obs_col_w, row_y, num_col_w * 5, header_h))
+        for j, label in enumerate(["x-pos", "y-pos", "angle", "x-vel", "y-vel"]):
+            _cell_text(label, x + obs_col_w + j * num_col_w, row_y, num_col_w, self.table_font, (255, 255, 255), "center")
+        row_y += header_h
+
+        # Body part rows (first col black/white center, 5 cols right-align)
+        if raw_obs is not None and len(raw_obs) >= 60:
+            for i, part_key in enumerate(ObservationExtractor.BODY_PART_ORDER):
+                label = BODY_PART_DISPLAY_LABELS.get(part_key, part_key)
+                idx = i * 5
+                v0, v1, v2, v3, v4 = (
+                    raw_obs[idx], raw_obs[idx + 1], raw_obs[idx + 2],
+                    raw_obs[idx + 3], raw_obs[idx + 4]
+                )
+                pygame.draw.rect(screen, (0, 0, 0), (x, row_y, obs_col_w, 15))
+                _cell_text(label, x, row_y, obs_col_w, self.table_font, (255, 255, 255), "center")
+                _cell_text("%.1f" % v0, x + obs_col_w, row_y, num_col_w, self.table_font, align="right")
+                _cell_text("%.1f" % v1, x + obs_col_w + num_col_w, row_y, num_col_w, self.table_font, align="right")
+                _cell_text("%.1f" % v2, x + obs_col_w + num_col_w * 2, row_y, num_col_w, self.table_font, align="right")
+                _cell_text("%.1f" % v3, x + obs_col_w + num_col_w * 3, row_y, num_col_w, self.table_font, align="right")
+                _cell_text("%.1f" % v4, x + obs_col_w + num_col_w * 4, row_y, num_col_w, self.table_font, align="right")
+                row_y += 15
     
     def _draw_background(self, game):
         """

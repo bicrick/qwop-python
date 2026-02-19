@@ -21,6 +21,7 @@ HURDLE_AT = 10000  # Hurdle obstacle location (pixels)
 # Screen dimensions
 SCREEN_WIDTH = 640
 SCREEN_HEIGHT = 400
+OBS_PANEL_WIDTH = 400
 
 # Physics simulation parameters
 PHYSICS_TIMESTEP = 0.04  # Fixed timestep - 25 FPS physics (1/25)

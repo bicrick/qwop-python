@@ -27,18 +27,50 @@ from . import common
 
 def run(action, cfg, cli_overrides=None):
     cli_overrides = cli_overrides or {}
-
-    if action == "play":
-        from .play import run_play
-        run_play()
-        return
-
     env_wrappers = cfg.pop("env_wrappers", [])
     env_kwargs = cfg.pop("env_kwargs", {})
     expanded_env_kwargs = common.expand_env_kwargs(env_kwargs)
     common.register_env(expanded_env_kwargs, env_wrappers)
 
-    if action in ("replay", "spectate", "benchmark", "train_bc", "train_gail", "train_airl"):
+    if action == "play":
+        from .play import play
+        play(
+            seed=cfg.get("seed") or common.gen_seed(),
+            run_id=cfg.get("run_id") or common.gen_id(),
+            fps=cfg.get("fps", 30),
+            reset_delay=cfg.get("reset_delay", 1),
+        )
+        return
+
+    if action == "replay":
+        from .replay import replay
+        replay(
+            fps=cfg.get("fps", 30),
+            reset_delay=cfg.get("reset_delay", 1),
+            recordings=cfg.get("recordings", "data/recordings/*.rec"),
+            steps_per_step=cfg.get("steps_per_step", 1),
+        )
+        return
+
+    if action == "spectate":
+        ensure_sb3_installed()
+        from .spectate import spectate
+        spectate(
+            fps=cfg.get("fps", 30),
+            reset_delay=cfg.get("reset_delay", 1),
+            steps_per_step=cfg.get("steps_per_step", 1),
+            model_file=cfg["model_file"],
+            model_mod=cfg.get("model_mod", "stable_baselines3"),
+            model_cls=cfg.get("model_cls", "PPO"),
+        )
+        return
+
+    if action == "benchmark":
+        from .benchmark import benchmark
+        benchmark(steps=cfg.get("steps", 10000))
+        return
+
+    if action in ("train_bc", "train_gail", "train_airl"):
         print("Not implemented: %s" % action)
         sys.exit(1)
 
@@ -89,7 +121,7 @@ To use this feature, install stable_baselines3 and sb3-contrib:
 
     pip install stable_baselines3 sb3-contrib
 
-Or install qwop-python with the sb3 extra (in the same env as qwop-python):
+Or install qwop-python with the sb3 extra:
 
     pip install "qwop-python[sb3]"
 
@@ -100,23 +132,17 @@ Or install qwop-python with the sb3 extra (in the same env as qwop-python):
         sys.exit(1)
 
 
-def ensure_bootstrapped(progname, action):
-    if not os.path.isdir("config"):
-        print("\nRun from project root or run: qwop-python bootstrap\n")
-        sys.exit(1)
-
-    config_path = os.path.join("config", f"{action}.yml")
-    if not os.path.exists(config_path):
-        print("\nRun from project root or run: qwop-python bootstrap\n")
-        sys.exit(1)
-
-
 def run_bootstrap():
     """Create config/ in CWD with templates from the package."""
     config_dir = os.path.join(os.getcwd(), "config")
     os.makedirs(config_dir, exist_ok=True)
     templates = (
         "env.yml",
+        "play.yml",
+        "record.yml",
+        "replay.yml",
+        "spectate.yml",
+        "benchmark.yml",
         "train_ppo.yml",
         "train_qrdqn.yml",
         "train_a2c.yml",
@@ -145,6 +171,13 @@ def main():
         help="config file, defaults to config/<action>.yml",
     )
     parser.add_argument("--run-id", type=str, help="run id (train_*)")
+    parser.add_argument(
+        "--obs",
+        "--observation-panel",
+        dest="observation_panel",
+        action="store_true",
+        help="show observation panel (play, record; spectate always shows it)",
+    )
 
     parser.formatter_class = argparse.RawDescriptionHelpFormatter
     parser.usage = "%(prog)s [options] <action>"
@@ -152,6 +185,10 @@ def main():
 action:
   bootstrap         create config/ with templates
   play              interactive gameplay
+  record            play with recording (-c config/record.yml)
+  replay            replay recorded actions
+  spectate          watch trained model play
+  benchmark         measure env steps/sec
   train_ppo         train using PPO
   train_dqn         train using DQN
   train_qrdqn       train using QRDQN
@@ -161,6 +198,8 @@ action:
 examples:
   %(prog)s bootstrap
   %(prog)s play
+  %(prog)s -c config/record.yml play
+  %(prog)s spectate
   %(prog)s train_ppo
 """
 
@@ -170,28 +209,41 @@ examples:
         run_bootstrap()
         return
 
-    if args.action == "play":
-        run(args.action, {})
-        return
+    record_mode = args.action == "record"
+    if record_mode:
+        args.action = "play"
+        if args.config_file is None:
+            args.config_file = os.path.join("config", "record.yml")
 
     cli_overrides = {
         "config_file": args.config_file,
         "run_id": args.run_id,
     }
 
-    ensure_bootstrapped(parser.prog, args.action)
-
     if args.config_file is not None:
         config_path = args.config_file
     else:
         config_path = os.path.join("config", f"{args.action}.yml")
 
+    if not os.path.isdir("config"):
+        print("\nRun from project root or run: qwop-python bootstrap\n")
+        sys.exit(1)
+    if not os.path.exists(config_path):
+        print("\nConfig not found: %s" % config_path)
+        print("Run from project root or: qwop-python bootstrap\n")
+        sys.exit(1)
+
     print("Loading configuration from %s" % config_path)
     with open(config_path, "r") as f:
-        cfg = yaml.safe_load(f)
+        cfg = yaml.safe_load(f) or {}
 
     if args.run_id is not None:
         cfg["run_id"] = args.run_id
+
+    if args.action == "spectate" or (
+        args.observation_panel and args.action in ("play", "record")
+    ):
+        cfg.setdefault("env_kwargs", {})["show_observation_panel"] = True
 
     run(args.action, cfg, cli_overrides)
 

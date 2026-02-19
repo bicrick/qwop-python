@@ -1,79 +1,142 @@
 # QWOP Python
 
-A Gymnasium environment for QWOP - pure Python Box2D implementation.
+A Gymnasium environment for Bennet Foddy's game [QWOP](https://www.foddy.net/Athletics.html) - a pure Python Box2D implementation forked from [qwop-gym](https://github.com/smanolloff/qwop-gym).
+
+This project reimplements the qwop-gym environment and tooling in pure Python, running entirely headless (no browser, no chromedriver). Designed for high-throughput training with parallelization in mind.
+
+## Differences from qwop-gym
+
+* **Pure Python + Box2D** - No browser, WebGL, or chromedriver. Runs entirely in process.
+* **Headless by default** - Training uses no rendering; play, spectate, and replay use Pygame.
+* **Parallelization-ready** - Single-process training matches qwop-gym; parallel envs can be re-added later for higher throughput.
+* **Same interface** - 60-dim observations, Discrete 9/16 actions, compatible reward model. Behavior matches qwop-gym.
 
 ## Install
 
-Python 3.10+
+Python 3.10+:
 
 ```bash
 pip install -e .
 ```
 
-For RL training (SB3, PyTorch, TensorBoard):
+For RL training (stable-baselines3, PyTorch, TensorBoard):
 
 ```bash
 pip install -e ".[sb3]"
 ```
 
-Alternative: `pip install -r requirements.txt`
+## The `qwop-python` tool
 
-On a GPU instance, run the setup script to configure Git/SSH and install the GPU stack:
+The `qwop-python` executable mirrors qwop-gym's CLI. Run from a directory with `config/` and `data/` (or repo root).
+
+First-time setup:
 
 ```bash
-./scripts/setup.sh
+qwop-python bootstrap
 ```
 
-## Project Structure
+Play the game (use Q, W, O, P keys):
 
-```
-qwop_python/          # Main package
-  tools/              # CLI (play, train_ppo, evaluate, collect_demos, bootstrap)
-config/               # YAML configs (run from repo root)
-data/                 # Models, logs, checkpoints
-doc/                  # Documentation
-```
-
-## Usage
-
-All commands via `qwop-python` CLI. Run from a directory with `config/` and `data/` (or repo root).
-If `config/` is missing: `qwop-python bootstrap`
-
-**Play:**
 ```bash
 qwop-python play
 ```
 
-**Train (tools config):**
+Explore the other commands:
+
+```bash
+$ qwop-python -h
+usage: qwop-python [options] <action>
+
+options:
+  -h, --help    show this help message and exit
+  -c FILE       config file, defaults to config/<action>.yml
+  --run-id ID   run id (train_*)
+
+action:
+  bootstrap      create config/ with templates
+  play           interactive gameplay
+  record         play with recording (-c config/record.yml)
+  replay         replay recorded actions
+  spectate       watch trained model play
+  benchmark      measure env steps/sec
+  train_ppo      train using PPO
+  train_dqn      train using DQN
+  train_qrdqn    train using QRDQN
+  train_rppo     train using RPPO
+  train_a2c      train using A2C
+
+examples:
+  qwop-python bootstrap
+  qwop-python play
+  qwop-python -c config/record.yml play
+  qwop-python spectate
+  qwop-python train_ppo
+```
+
+Record your own gameplay:
+
+```bash
+qwop-python -c config/record.yml play
+```
+
+Train a PPO agent (edit `config/train_ppo.yml` if needed):
+
 ```bash
 qwop-python train_ppo
-qwop-python train_qrdqn
 ```
 
-**Train (standalone config, DQNfD):**
-```bash
-qwop-python train -c config/train_qrdqn_single.yml
-qwop-python train -c config/train_dqnfd_stage1.yml --resume-from data/QRDQN_*/final_model.zip
-```
-
-**Evaluate:**
-```bash
-qwop-python evaluate --model data/models/QRDQN_*/final_model.zip --episodes 50
-```
-
-**Collect demos (DQNfD):**
-```bash
-qwop-python collect_demos -c config/collect_demos.yml
-```
+Visualize TensorBoard logs:
 
 ```bash
 tensorboard --logdir data/
 ```
 
-## Dev / Run without install
-
-From repo root:
+Configure `model_file` in `config/spectate.yml` and watch a trained agent:
 
 ```bash
-PYTHONPATH=. python qwop-python.py train_ppo
+qwop-python spectate
 ```
+
+Replay recorded episodes:
+
+```bash
+qwop-python replay
+```
+
+Benchmark env throughput (steps/sec):
+
+```bash
+qwop-python benchmark
+```
+
+## Create an instance in code
+
+```python
+import gymnasium as gym
+
+# Headless (default) - for training
+env = gym.make("local/QWOP-v1", seed=42)
+
+# With rendering - for play, spectate, replay
+env = gym.make("local/QWOP-v1", render_mode="human", seed=42)
+obs, info = env.reset()
+obs, reward, terminated, truncated, info = env.step(0)
+env.render()
+env.close()
+```
+
+## Project structure
+
+```
+qwop_python/           # Main package
+  qwop_env.py          # Gymnasium environment
+  game.py              # Game loop, physics integration
+  tools/               # CLI (play, train_*, spectate, replay, benchmark)
+  wrappers/            # VerboseWrapper, RecordWrapper
+config/                # YAML configs (created by bootstrap)
+data/                  # Models, logs, checkpoints, recordings
+```
+
+## License
+
+Apache-2.0 (same as qwop-gym).

@@ -5,5 +5,7 @@ Collection of environment wrappers for reward shaping and curriculum learning.
 """
 
 from .reward_shaping_wrapper import RewardShapingWrapper
+from .verbose_wrapper import VerboseWrapper
+from .record_wrapper import RecordWrapper
 
-__all__ = ['RewardShapingWrapper']
+__all__ = ["RewardShapingWrapper", "VerboseWrapper", "RecordWrapper"]
