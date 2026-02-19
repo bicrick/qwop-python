@@ -2,6 +2,8 @@
 
 A Gymnasium environment for Bennet Foddy's game [QWOP](https://www.foddy.net/Athletics.html) - a pure Python Box2D implementation forked from [qwop-gym](https://github.com/smanolloff/qwop-gym).
 
+![qwop-python](./doc/qwop-python.gif)
+
 This project reimplements the qwop-gym environment and tooling in pure Python, running entirely headless (no browser, no chromedriver). Designed for high-throughput training with parallelization in mind.
 
 ## Differences from qwop-gym
