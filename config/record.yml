@@ -1,0 +1,18 @@
+---
+fps: 30
+reset_delay: 1
+
+env_kwargs:
+  __include__: "config/env.yml"
+  render_mode: "human"
+
+env_wrappers:
+  - module: "qwop_python"
+    cls: "VerboseWrapper"
+  - module: "qwop_python"
+    cls: "RecordWrapper"
+    kwargs:
+      rec_file: "data/recordings/recording-1.rec"
+      overwrite: true
+      max_time: 10
+      min_distance: 3

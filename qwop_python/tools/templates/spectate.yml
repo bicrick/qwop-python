@@ -1,0 +1,18 @@
+---
+fps: 120
+reset_delay: 1
+
+model_file: "data/PPO-0fv1l9w0/model.zip"
+model_mod: "stable_baselines3"
+model_cls: "PPO"
+
+steps_per_step: 4
+
+env_kwargs:
+  __include__: "config/env.yml"
+  frames_per_step: 1
+  render_mode: "human"
+
+env_wrappers:
+  - module: "qwop_python"
+    cls: "VerboseWrapper"

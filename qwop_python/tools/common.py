@@ -41,6 +41,8 @@ ALLOWED_ENV_KWARGS = {
     "time_cost_mult",
     "seed",
     "speed_rew_mult",
+    "render_mode",
+    "show_observation_panel",
 }
 
 
@@ -132,6 +134,8 @@ def out_dir_from_template(tmpl, seed, run_id):
 
 def load_recordings(rec_file_patterns):
     recs = []
+    if isinstance(rec_file_patterns, str):
+        rec_file_patterns = [rec_file_patterns]
 
     for rfp in rec_file_patterns:
         for rec_file in sorted(glob.glob(rfp)):
@@ -254,6 +258,28 @@ def lr_from_schedule(schedule):
     exit(1)
 
 
+def skip_episode(env, steps_per_step, model):
+    """Fast-forward through a skipped episode without rendering."""
+    terminated = False
+
+    try:
+        env.get_wrapper_attr("disable_verbose_wrapper")()
+    except AttributeError:
+        pass
+
+    while not terminated:
+        action, _ = model.predict(None)
+        for _ in range(steps_per_step):
+            _, _, terminated, _, _ = env.step(action)
+            if terminated:
+                break
+
+    try:
+        env.get_wrapper_attr("enable_verbose_wrapper")()
+    except AttributeError:
+        pass
+
+
 def play_model(env, fps, steps_per_step, model, obs):
     terminated = False
     clock = Clock(fps)
@@ -262,6 +288,7 @@ def play_model(env, fps, steps_per_step, model, obs):
         action, _states = model.predict(obs)
         for _ in range(steps_per_step):
             obs, reward, terminated, truncated, info = env.step(action)
+            env.render()
             clock.tick()
             if terminated:
                 break

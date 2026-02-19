@@ -1,93 +1,60 @@
-"""Interactive gameplay for QWOP."""
+# =============================================================================
+# Copyright 2023 Simeon Manolov <s.manolloff@gmail.com>.  All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# =============================================================================
 
+import time
 import pygame
+import gymnasium as gym
 
-from ..game import QWOPGame
-from ..renderer import QWOPRenderer
-from ..data import SCREEN_WIDTH, SCREEN_HEIGHT
-
-
-KEY_MAP = {
-    pygame.K_q: "q",
-    pygame.K_w: "w",
-    pygame.K_o: "o",
-    pygame.K_p: "p",
-}
+from . import common
 
 
-def run_play():
-    """
-    Main game loop. Runs at 30 FPS matching original QWOP.
-    Physics runs at fixed 25 FPS (0.04s timestep) internally.
-    """
-    pygame.init()
-
-    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-    pygame.display.set_caption("QWOP - Python Recreation")
-    clock = pygame.time.Clock()
-
-    print()
-    print("=" * 70)
-    print("QWOP - PYTHON RECREATION")
-    print("=" * 70)
-    print()
-
-    game = QWOPGame(verbose=True, headless=False)
-    game.initialize()
-    renderer = QWOPRenderer(screen)
-
-    print()
-    print("=" * 70)
-    print("CONTROLS")
-    print("=" * 70)
-    print("Q - Right thigh forward, left thigh back")
-    print("W - Left thigh forward, right thigh back")
-    print("O - Right calf forward, left calf back")
-    print("P - Left calf forward, right calf back")
-    print("R or Space - Reset game")
-    print("ESC - Quit")
-    print("=" * 70)
-    print()
-    print("Click or press Q/W/O/P to start!")
-    print()
-
-    running = True
+def play(seed, run_id, fps, reset_delay=1):
+    """Interactive play using env. Supports recording via RecordWrapper in config."""
+    env = gym.make("local/QWOP-v1", seed=seed)
 
     try:
-        while running:
-            dt = clock.tick(30) / 1000.0
+        obs, info = env.reset()
+        clock = pygame.time.Clock()
 
+        while True:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
-                    running = False
-                elif event.type == pygame.MOUSEBUTTONDOWN:
-                    if not game.first_click:
-                        game.start()
+                    return
                 elif event.type == pygame.KEYDOWN:
-                    if event.key in KEY_MAP:
-                        key_char = KEY_MAP[event.key]
-                        game.controls.key_down(key_char)
-                        if not game.first_click:
-                            game.start()
+                    if event.key == pygame.K_ESCAPE:
+                        return
                     elif event.key in (pygame.K_r, pygame.K_SPACE):
-                        game.reset()
-                    elif event.key == pygame.K_ESCAPE:
-                        running = False
-                elif event.type == pygame.KEYUP:
-                    if event.key in KEY_MAP:
-                        game.controls.key_up(KEY_MAP[event.key])
+                        obs, info = env.reset()
 
-            game.update(dt)
-            renderer.render(game)
-            pygame.display.flip()
+            action_mapper = env.unwrapped.action_mapper
+            q = pygame.key.get_pressed()[pygame.K_q]
+            w = pygame.key.get_pressed()[pygame.K_w]
+            o = pygame.key.get_pressed()[pygame.K_o]
+            p = pygame.key.get_pressed()[pygame.K_p]
+            action = action_mapper.action_from_keys(q=q, w=w, o=o, p=p)
+            if action is None:
+                action = 0
 
-    except KeyboardInterrupt:
-        print("\nGame interrupted by user")
-    except Exception as e:
-        print(f"\nError during game loop: {e}")
-        import traceback
+            obs, reward, terminated, truncated, info = env.step(action)
+            env.render()
+            clock.tick(fps)
 
-        traceback.print_exc()
+            if terminated or truncated:
+                if reset_delay > 0:
+                    time.sleep(reset_delay)
+                obs, info = env.reset()
     finally:
-        pygame.quit()
-        print("\nThanks for playing QWOP!")
+        env.close()
