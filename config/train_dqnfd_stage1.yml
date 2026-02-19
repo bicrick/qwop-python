@@ -12,11 +12,11 @@ total_timesteps: 10_000_000
 n_envs: 1  # QRDQN/DQN in SB3 typically uses n_envs=1
 max_episode_steps: 1000
 
-# Load PROVEN weights: python train.py --config config/train_dqnfd_stage1.yml --resume-from data/QRDQN-PROVEN-k3jlgned/model.zip
+# Load PROVEN weights: qwop-python train -c config/train_dqnfd_stage1.yml --resume-from data/QRDQN-PROVEN-k3jlgned/model.zip
 # model_load_file: "data/QRDQN-PROVEN-k3jlgned/model.zip"
 
 # DQNfD: inject expert demonstrations during training
-# Run collect_demos.py first to generate the .npz file
+# Run qwop-python collect_demos first to generate the .npz file
 demo_file: "data/demonstrations/qrdqn_proven_demos.npz"
 demo_injection_ratio: 0.5
 

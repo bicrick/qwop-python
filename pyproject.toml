@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "qwop-python"
+version = "0.1.0"
+description = "A Gymnasium environment for QWOP - pure Python Box2D implementation"
+requires-python = ">=3.10"
+dependencies = [
+    "setuptools>=61.0",  # pkg_resources required by tensorboard
+    "gymnasium ~= 0.29",
+    "numpy ~= 1.24",
+    "pygame ~= 2.5",
+    "Box2D ~= 2.3",
+    "pyyaml >= 6.0",
+]
+
+[project.optional-dependencies]
+sb3 = [
+    "stable_baselines3 ~= 2.1",
+    "sb3-contrib ~= 2.1",
+    "torch >= 2.0",
+    "tensorboard",
+    "tqdm",
+    "rich",
+]
+
+[project.scripts]
+"qwop-python" = "qwop_python.tools.main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["qwop_python*"]
+
+[tool.setuptools.package-data]
+"qwop_python.tools.templates" = ["*.yml"]

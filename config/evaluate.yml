@@ -1,0 +1,10 @@
+# Configuration for evaluating a trained model
+model_file: "data/models/QRDQN_*/final_model.zip"
+n_episodes: 100
+seed: 42
+render: false
+max_episode_steps: 1000
+
+env_kwargs:
+  frames_per_step: 4
+  reduced_action_set: true
