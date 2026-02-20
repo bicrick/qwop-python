@@ -92,12 +92,19 @@ def run(action, cfg, cli_overrides=None):
                 "total_timesteps": cfg.get("total_timesteps", 1000000),
                 "max_episode_steps": cfg.get("max_episode_steps", 5000),
                 "n_checkpoints": cfg.get("n_checkpoints", 5),
+                "n_envs": cfg.get("n_envs", 1),
                 "learner_lr_schedule": cfg.get("learner_lr_schedule", "const_0.001"),
             }
         )
 
         run_duration, run_values = common.measure(
-            train_sb3, dict(run_config, learner_cls=learner_cls)
+            train_sb3,
+            dict(
+                run_config,
+                learner_cls=learner_cls,
+                env_kwargs=expanded_env_kwargs,
+                env_wrappers=env_wrappers,
+            ),
         )
 
         common.save_run_metadata(

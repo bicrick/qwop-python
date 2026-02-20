@@ -31,10 +31,8 @@ max_episode_steps: 1000
 # Increased checkpoints for longer training
 n_checkpoints: 50
 
-# [int] Number of parallel environments (each spawns a browser)
-# Increases data collection speed proportionally (8x faster)
-# Resource usage: ~8 Chrome instances + ~8 chromedriver processes
-# Expected: ~16000 obs/sec vs ~2000 obs/sec with single env
+# [int] Number of parallel environments (SubprocVecEnv; headless, no browser)
+# Increases data collection speed proportionally (e.g. 8x with 8 envs)
 n_envs: 8
 
 # QRDQN algorithm parameters optimized for world record

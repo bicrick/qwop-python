@@ -26,6 +26,9 @@ max_episode_steps: 5000
 # Example: 5 means save at 20%, 40%, 60%, 80% and 100% progress
 n_checkpoints: 5
 
+# [int] Number of parallel environments (1 = single process; >1 uses SubprocVecEnv)
+n_envs: 1
+
 # PPO algorithm parameters (used only if model_load_file is blank)
 # https://stable-baselines3.readthedocs.io/en/master/modules/ppo.html
 learner_kwargs:

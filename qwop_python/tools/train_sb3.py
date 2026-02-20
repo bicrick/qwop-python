@@ -14,18 +14,33 @@
 # limitations under the License.
 # =============================================================================
 
+import functools
 import math
 import os
 
+import gymnasium as gym
 import sb3_contrib
 import stable_baselines3
 from gymnasium.wrappers import TimeLimit
 from stable_baselines3.common import logger
 from stable_baselines3.common.callbacks import BaseCallback, CheckpointCallback
 from stable_baselines3.common.env_util import make_vec_env
+from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.utils import safe_mean
+from stable_baselines3.common.vec_env import SubprocVecEnv
 
 from . import common
+
+
+def _subprocess_make_env(env_kwargs, env_wrappers, seed, max_episode_steps):
+    """Create one env inside a SubprocVecEnv worker. Registers the env then makes it (so the
+    worker process has the 'local/QWOP-v1' namespace). Called via partial from the parent."""
+    common.register_env(env_kwargs, env_wrappers)
+    kwargs = {**env_kwargs, "seed": seed}
+    env = gym.make("local/QWOP-v1", **kwargs)
+    env = TimeLimit(env, max_episode_steps=max_episode_steps)
+    env = Monitor(env, info_keywords=common.INFO_KEYS)
+    return env
 
 
 class LogCallback(BaseCallback):
@@ -81,17 +96,33 @@ def init_model(
     return model
 
 
-def create_vec_env(seed, max_episode_steps):
-    """Create vectorized env. Requires common.register_env() to have been called first."""
-    venv = make_vec_env(
-        "local/QWOP-v1",
+def create_vec_env(seed, max_episode_steps, n_envs=1, env_kwargs=None, env_wrappers=None):
+    """Create vectorized env. Requires common.register_env() to have been called first (for n_envs==1).
+    For n_envs>1, each subprocess registers the env via _subprocess_make_env."""
+    if n_envs > 1:
+        env_kwargs = env_kwargs or {}
+        env_wrappers = env_wrappers or []
+        env_fns = [
+            functools.partial(
+                _subprocess_make_env,
+                env_kwargs,
+                env_wrappers,
+                seed + i,
+                max_episode_steps,
+            )
+            for i in range(n_envs)
+        ]
+        return SubprocVecEnv(env_fns, start_method="spawn")
+    kwargs = dict(
+        env_id="local/QWOP-v1",
+        n_envs=1,
+        seed=seed,
         env_kwargs={"seed": seed},
         monitor_kwargs={"info_keywords": common.INFO_KEYS},
         wrapper_class=TimeLimit,
         wrapper_kwargs={"max_episode_steps": max_episode_steps},
     )
-
-    return venv
+    return make_vec_env(**kwargs)
 
 
 def train_sb3(
@@ -104,10 +135,19 @@ def train_sb3(
     total_timesteps,
     max_episode_steps,
     n_checkpoints,
+    n_envs,
     out_dir_template,
     log_tensorboard,
+    env_kwargs=None,
+    env_wrappers=None,
 ):
-    venv = create_vec_env(seed, max_episode_steps)
+    venv = create_vec_env(
+        seed,
+        max_episode_steps,
+        n_envs=n_envs,
+        env_kwargs=env_kwargs,
+        env_wrappers=env_wrappers,
+    )
 
     try:
         out_dir = common.out_dir_from_template(out_dir_template, seed, run_id)
