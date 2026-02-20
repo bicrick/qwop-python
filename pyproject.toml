@@ -17,6 +17,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+test = [
+    "pytest >= 7.0",
+]
+js = [
+    "mini_racer >= 0.6.0",
+]
 sb3 = [
     "stable_baselines3 ~= 2.1",
     "sb3-contrib ~= 2.1",
@@ -35,3 +41,11 @@ include = ["qwop_python*"]
 
 [tool.setuptools.package-data]
 "qwop_python.tools.templates" = ["*.yml"]
+"qwop_python.js" = ["*.js"]
+
+[tool.pytest.ini_options]
+filterwarnings = [
+    "ignore:builtin type SwigPyPacked has no __module__:DeprecationWarning",
+    "ignore:builtin type SwigPyObject has no __module__:DeprecationWarning",
+    "ignore:builtin type swigvarlink has no __module__:DeprecationWarning",
+]

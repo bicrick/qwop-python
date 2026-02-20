@@ -1,0 +1,21 @@
+# Conda env for cross-env parity testing (qwop-python vs qwop-gym).
+# Install both packages so one process can run the same seed+actions in both envs.
+#
+# Create env:
+#   conda env create -f environment.yml
+#   conda activate qwop-parity
+#
+# Then install qwop-gym (edit path to your qwop-gym repo):
+#   pip install -e /path/to/qwop-gym
+#
+# See doc/CROSS_ENV_TEST.md for Chrome/chromedriver setup and running the test.
+
+name: qwop-parity
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python>=3.10,<3.13
+  - pip
+  - pip:
+    - -e .  # qwop-python (from this repo)

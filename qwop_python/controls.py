@@ -9,7 +9,7 @@ Implements the exact control logic from the original QWOP game:
 All motor speeds and hip limits match doc/reference/QWOP_FUNCTIONS_EXACT.md lines 94-139.
 """
 
-from .data import CONTROL_Q, CONTROL_W, CONTROL_O, CONTROL_P
+from .data import CONTROL_Q, CONTROL_W, CONTROL_O, CONTROL_P, DEFAULT_HIP_LIMITS
 
 
 class ControlsHandler:
@@ -138,8 +138,9 @@ class ControlsHandler:
             self._apply_motor_speeds(CONTROL_P['motor_speeds'])
             self._apply_hip_limits(CONTROL_P['hip_limits'])
         else:
-            # No O/P: Stop knee motors
+            # No O/P: Stop knee motors and restore default hip limits for Q/W running
             self._stop_motors(['rightKnee', 'leftKnee'])
+            self._apply_hip_limits(DEFAULT_HIP_LIMITS)
     
     def _apply_motor_speeds(self, motor_speeds):
         """

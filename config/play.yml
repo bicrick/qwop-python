@@ -4,6 +4,7 @@ reset_delay: 1
 
 env_kwargs:
   __include__: "config/env.yml"
+  backend: "js"
   render_mode: "human"
 
 env_wrappers:

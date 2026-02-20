@@ -1,5 +1,7 @@
 # QWOP Complete Data Reference - All Values for 1:1 Recreation
 
+**Python/JS parity:** The qwop-python codebase keeps body positions, TRACK_Y, camera init/offset, and ground segment formula in sync with QWOP.min.js (create_player, create_world, reset, update). Run `python -m qwop_python.tools.verify_spawn_layout` to verify spawn and layout match 1:1.
+
 ## Table of Contents
 1. [Physics World Setup](#physics-world-setup)
 2. [Camera Configuration](#camera-configuration)

@@ -1,6 +1,11 @@
 """
 QWOP Game Data - Complete Constants and Configurations
 All values extracted from reverse-engineered QWOP.js documentation in /docs
+
+Python/JS parity: Body positions (BODY_PARTS), TRACK_Y, camera init (INITIAL_CAMERA_*),
+CAMERA_HORIZONTAL_OFFSET, and ground segment formula are taken from QWOP.min.js
+(create_player, create_world, reset, update) and match 1:1. Verify with:
+  python -m qwop_python.tools.verify_spawn_layout
 """
 
 # =============================================================================
@@ -23,7 +28,7 @@ SCREEN_WIDTH = 640
 SCREEN_HEIGHT = 400
 OBS_PANEL_WIDTH = 400
 
-# Physics simulation parameters
+# Physics simulation parameters (min.js 905: m_world.step(.04, 5, 5))
 PHYSICS_TIMESTEP = 0.04  # Fixed timestep - 25 FPS physics (1/25)
 VELOCITY_ITERATIONS = 5  # Box2D velocity constraint solver iterations
 POSITION_ITERATIONS = 5  # Box2D position constraint solver iterations
@@ -335,9 +340,8 @@ JOINTS = {
 }
 
 # =============================================================================
-# CONTROL MAPPINGS
+# CONTROL MAPPINGS (min.js 875: Q/W/O/P motor speeds and hip limits)
 # Source: doc/reference/QWOP_CONTROLS.md, doc/reference/QWOP_FUNCTIONS_EXACT.md
-# Motor speeds and hip limit adjustments for each key
 # =============================================================================
 
 CONTROL_Q = {
@@ -384,6 +388,12 @@ CONTROL_P = {
     }
 }
 
+# Restored when neither O nor P is pressed so Q/W running has full hip range (matches JOINTS creation values).
+DEFAULT_HIP_LIMITS = {
+    'leftHip': (JOINTS['leftHip']['lower_angle'], JOINTS['leftHip']['upper_angle']),
+    'rightHip': (JOINTS['rightHip']['lower_angle'], JOINTS['rightHip']['upper_angle']),
+}
+
 # =============================================================================
 # TRACK/GROUND CONFIGURATION
 # Source: doc/reference/QWOP_COMPLETE_DATA_REFERENCE.md
@@ -421,7 +431,7 @@ HURDLE_JOINT_ANCHOR_B = (20.9 / WORLD_SCALE, 0.25 / WORLD_SCALE)  # (1.045, 0.01
 # Source: doc/reference/QWOP_FUNCTIONS_EXACT.md, doc/reference/QWOP_COMPLETE_DATA_REFERENCE.md
 # =============================================================================
 
-# Head stabilization (critical for balance)
+# Head stabilization (min.js 868: applyTorque(-4 * (angle + .2)))
 HEAD_TORQUE_FACTOR = -4
 HEAD_TORQUE_OFFSET = 0.2
 

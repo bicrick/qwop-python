@@ -154,7 +154,7 @@ class QWOPGame:
         # Step 3: Floor repositioning (infinite scrolling)
         self._reposition_ground_segments()
         
-        # Step 4: Head stabilization torque (critical for balance)
+        # Step 4: Head stabilization torque (min.js 868: -4 * (angle + .2))
         if not self.game_state.fallen:
             head = self.physics.get_body('head')
             if head is not None:
@@ -174,7 +174,7 @@ class QWOPGame:
         # Step 6: Control input processing
         self.controls.apply()
         
-        # Step 8: Physics simulation step (fixed 0.04s timestep)
+        # Step 8: Physics simulation step (min.js 905: step(.04, 5, 5))
         if self.first_click and not self.pause:
             self.physics.step()
         

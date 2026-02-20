@@ -30,10 +30,11 @@ from gymnasium.envs.registration import register
 from ..qwop_env import QWOPEnv
 
 # Keys of user-defined metrics in the `info` dict
-INFO_KEYS = ("time", "distance", "avgspeed", "is_success")
+INFO_KEYS = ("time", "distance", "avgspeed", "is_success", "total_reward")
 
 # QWOPEnv kwargs we accept (filter out browser-specific etc.)
 ALLOWED_ENV_KWARGS = {
+    "backend",
     "frames_per_step",
     "reduced_action_set",
     "failure_cost",
@@ -43,6 +44,10 @@ ALLOWED_ENV_KWARGS = {
     "speed_rew_mult",
     "render_mode",
     "show_observation_panel",
+    "reward_mode",
+    "distance_rew_mult",
+    "time_cost_mult_distance",
+    "reward_dt_mode",
 }
 
 

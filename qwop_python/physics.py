@@ -507,6 +507,7 @@ class PhysicsWorld:
         if dt is None:
             dt = PHYSICS_TIMESTEP
         
+        # min.js 905: m_world.step(.04, 5, 5)
         self.world.Step(dt, VELOCITY_ITERATIONS, POSITION_ITERATIONS)
         
     def initialize(self):

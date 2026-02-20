@@ -67,7 +67,8 @@ env_kwargs:
   __include__: "config/env.yml"
   frames_per_step: 4
   reduced_action_set: true  # CRITICAL: Reduced from 16 to 9 actions - removes redundant combos
-  text_in_browser: "Training for World Record (100m+)..."
+  reward_mode: "distance"  # Reward per metre gained for consistent forward progress (speed later)
+  distance_rew_mult: 1.0
 
 # List of gym wrappers to use for the env
 env_wrappers: []
