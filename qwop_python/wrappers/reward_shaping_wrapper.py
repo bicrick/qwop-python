@@ -309,6 +309,7 @@ class ProgressiveVelocityIncentiveWrapper(VelocityIncentiveWrapper):
         initial_exponent: Starting exponent for velocity
         final_exponent: Final exponent for velocity
         ramp_fraction: Fraction of training over which to ramp (default: 0.5)
+        hold_fraction: Fraction of training to hold at initial before ramping (default: 0)
     """
 
     def __init__(
@@ -319,6 +320,7 @@ class ProgressiveVelocityIncentiveWrapper(VelocityIncentiveWrapper):
         initial_exponent=1.5,
         final_exponent=2.5,
         ramp_fraction=0.5,
+        hold_fraction=0.0,
     ):
         super().__init__(
             env,
@@ -330,12 +332,18 @@ class ProgressiveVelocityIncentiveWrapper(VelocityIncentiveWrapper):
         self.initial_exponent = initial_exponent
         self.final_exponent = final_exponent
         self.ramp_fraction = ramp_fraction
+        self.hold_fraction = hold_fraction
         self._progress_remaining = 1.0
 
     def set_progress(self, progress_remaining: float):
         """Update weights based on training progress. Called by VelocityRewardSchedulerCallback."""
         self._progress_remaining = progress_remaining
-        ramp_progress = min(1.0, (1.0 - progress_remaining) / self.ramp_fraction)
+        fraction_done = 1.0 - progress_remaining
+        if fraction_done <= self.hold_fraction:
+            ramp_progress = 0.0
+        else:
+            ramp_span = max(1e-6, self.ramp_fraction - self.hold_fraction)
+            ramp_progress = min(1.0, (fraction_done - self.hold_fraction) / ramp_span)
         self.velocity_weight = (
             self.initial_velocity_weight
             + ramp_progress * (self.final_velocity_weight - self.initial_velocity_weight)
