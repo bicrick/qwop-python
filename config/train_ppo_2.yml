@@ -1,0 +1,52 @@
+---
+# Stage 2 PPO: Load competent model, continue training with progressive speed incentive.
+# Run: qwop-python train_ppo -c config/train_ppo_2.yml
+# Set model_load_file to your competent model before running.
+
+seed: ~
+run_id: ~
+
+# Path to competent model from stage 1 (e.g., PPO-jxan0tk8)
+model_load_file: "data/PPO-jxan0tk8/model.zip"
+
+out_dir_template: "data/PPO2-{run_id}"
+log_tensorboard: true
+
+# Shorter than stage 1; speed optimization phase
+total_timesteps: 2_000_000
+max_episode_steps: 5000
+n_checkpoints: 5
+n_envs: 8
+
+learner_kwargs:
+  policy: "MlpPolicy"
+  use_sde: false
+  sde_sample_freq: 4
+  n_steps: 2048
+  batch_size: 32
+  n_epochs: 10
+  gamma: 0.95
+  gae_lambda: 0.98
+  clip_range: 0.4
+  normalize_advantage: true
+  ent_coef: 0.001
+  vf_coef: 0.5
+  max_grad_norm: 3
+
+learner_lr_schedule: "exp_decay_0.001_0.0001_0.5_5"
+
+env_kwargs:
+  __include__: "config/env.yml"
+  frames_per_step: 4
+  reduced_action_set: false
+
+# Progressive velocity incentive: ramps speed reward over first 50% of training
+env_wrappers:
+  - module: "qwop_python.wrappers.reward_shaping_wrapper"
+    cls: "ProgressiveVelocityIncentiveWrapper"
+    kwargs:
+      initial_velocity_weight: 0.5
+      final_velocity_weight: 2.0
+      initial_exponent: 1.5
+      final_exponent: 2.5
+      ramp_fraction: 0.5

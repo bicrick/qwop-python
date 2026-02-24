@@ -35,7 +35,7 @@ n_checkpoints: 50
 # Increases data collection speed proportionally (8x faster)
 # Resource usage: ~8 Chrome instances + ~8 chromedriver processes
 # Expected: ~16000 obs/sec vs ~2000 obs/sec with single env
-n_envs: 8
+n_envs: 1
 
 # QRDQN algorithm parameters optimized for world record
 # Key changes from default:

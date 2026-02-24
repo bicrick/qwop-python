@@ -40,6 +40,7 @@ ALLOWED_ENV_KWARGS = {
     "success_reward",
     "time_cost_mult",
     "seed",
+    "distance_rew_mult",
     "speed_rew_mult",
     "render_mode",
     "show_observation_panel",

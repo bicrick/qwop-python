@@ -40,6 +40,35 @@ class LogCallback(BaseCallback):
     on_step = _on_step  # Fixes a bug with stable-baselines3 in version 2.2.1
 
 
+class VelocityRewardSchedulerCallback(BaseCallback):
+    """Updates ProgressiveVelocityIncentiveWrapper with training progress."""
+
+    def __init__(self, venv, total_timesteps):
+        super().__init__()
+        self.venv = venv
+        self.total_timesteps = total_timesteps
+        self._wrappers = self._find_progressive_wrappers()
+
+    def _find_progressive_wrappers(self):
+        wrappers = []
+        for i in range(self.venv.num_envs):
+            env = self.venv.envs[i]
+            while env is not None:
+                if hasattr(env, "set_progress"):
+                    wrappers.append(env)
+                    break
+                env = getattr(env, "env", None)
+        return wrappers
+
+    def _on_step(self) -> bool:
+        if not self._wrappers:
+            return True
+        progress_remaining = 1.0 - (self.model.num_timesteps / self.total_timesteps)
+        for w in self._wrappers:
+            w.set_progress(progress_remaining)
+        return True
+
+
 def init_model(
     venv,
     seed,
@@ -124,18 +153,23 @@ def train_sb3(
             out_dir=out_dir,
         )
 
+        callbacks = [
+            LogCallback(),
+            CheckpointCallback(
+                save_freq=math.ceil(total_timesteps / n_checkpoints),
+                save_path=out_dir,
+                name_prefix="model",
+            ),
+        ]
+        scheduler = VelocityRewardSchedulerCallback(venv, total_timesteps)
+        if scheduler._wrappers:
+            callbacks.append(scheduler)
+
         model.learn(
             total_timesteps=total_timesteps,
             reset_num_timesteps=False,
             progress_bar=True,
-            callback=[
-                LogCallback(),
-                CheckpointCallback(
-                    save_freq=math.ceil(total_timesteps / n_checkpoints),
-                    save_path=out_dir,
-                    name_prefix="model",
-                ),
-            ],
+            callback=callbacks,
         )
 
         common.save_model(out_dir, model)

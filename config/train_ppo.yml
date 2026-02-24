@@ -17,7 +17,8 @@ out_dir_template: "data/PPO-{run_id}"
 log_tensorboard: true
 
 # [int] Training duration (set to a minimum of 10-20M for PPO)
-total_timesteps: 1_000_000
+# 5M for env validation; increase to 10M+ once env is confirmed working
+total_timesteps: 5_000_000
 
 # [int] (optional) Force env termination on the Nth step of an episode
 max_episode_steps: 5000
@@ -25,6 +26,12 @@ max_episode_steps: 5000
 # [int] Number of times the model will be saved during training
 # Example: 5 means save at 20%, 40%, 60%, 80% and 100% progress
 n_checkpoints: 5
+
+# [int] Number of parallel environments (each spawns a browser)
+# Increases data collection speed proportionally (8x faster)
+# Resource usage: ~8 Chrome instances + ~8 chromedriver processes
+# Expected: ~16000 obs/sec vs ~2000 obs/sec with single env
+n_envs: 8
 
 # PPO algorithm parameters (used only if model_load_file is blank)
 # https://stable-baselines3.readthedocs.io/en/master/modules/ppo.html
@@ -35,7 +42,7 @@ learner_kwargs:
   n_steps: 2048
   batch_size: 32
   n_epochs: 10
-  gamma: 0.9
+  gamma: 0.95  # Higher = values future distance more (helps long 100m runs)
   gae_lambda: 0.98
   clip_range: 0.4
   normalize_advantage: true
@@ -45,7 +52,8 @@ learner_kwargs:
 
 # (string) Schedule for the learning_rate as a function of the progress remaining.
 # Format: const_V0 | lin_decay_V0_V1_F | exp_decay_V0_V1_F_N
-learner_lr_schedule: "const_0.001"
+# Decay helps escape plateaus; 0.001->0.0001 over first 50% in 5 steps
+learner_lr_schedule: "exp_decay_0.001_0.0001_0.5_5"
 
 # Env parameters. __include__ loads from config/env.yml; keys here override.
 env_kwargs:

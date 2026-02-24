@@ -6,7 +6,7 @@ Designed for maximum speed with headless mode (no rendering).
 
 Observation: 60-dim float32 vector (12 body parts x 5 values each)
 Action: Discrete(16) or Discrete(9) with reduced_action_set
-Reward: Velocity-based (Δdistance/Δtime) minus time cost, plus terminal bonuses
+Reward: Distance-based (meters traveled) plus velocity, minus time cost, plus terminal bonuses
 """
 
 import time
@@ -34,7 +34,8 @@ class QWOPEnv(gymnasium.Env):
         failure_cost: Penalty for falling (default: 10.0)
         success_reward: Bonus for completing the course (default: 50.0)
         time_cost_mult: Multiplier for time cost in reward (default: 10.0)
-        speed_rew_mult: Multiplier for velocity in reward (default: 0.01)
+        distance_rew_mult: Multiplier for distance traveled in reward (default: 10.0)
+        speed_rew_mult: Multiplier for velocity in reward (default: 0.2)
         seed: Random seed for deterministic physics (default: None)
         render_mode: None (headless) or "human" (Pygame window)
     """
@@ -48,7 +49,8 @@ class QWOPEnv(gymnasium.Env):
         failure_cost=10.0,
         success_reward=50.0,
         time_cost_mult=10.0,
-        speed_rew_mult=0.01,
+        distance_rew_mult=10.0,
+        speed_rew_mult=0.2,
         seed=None,
         render_mode=None,
         show_observation_panel=False,
@@ -68,6 +70,7 @@ class QWOPEnv(gymnasium.Env):
         self.failure_cost = failure_cost
         self.success_reward = success_reward
         self.time_cost_mult = time_cost_mult
+        self.distance_rew_mult = distance_rew_mult
         self.speed_rew_mult = speed_rew_mult
 
         n_actions = self.action_mapper.num_actions
@@ -85,7 +88,7 @@ class QWOPEnv(gymnasium.Env):
         self._total_reward = 0.0
         self._episode_start_time = 0.0
         self._distance_buffer = []
-        self._distance_buffer_size = 10
+        self._distance_buffer_size = 100  # Larger window to prevent oscillation from yielding positive velocity reward
 
         self.seedval = int(seed) if seed is not None else None
         self._last_obs = None
@@ -170,6 +173,14 @@ class QWOPEnv(gymnasium.Env):
         raw_obs = self.obs_extractor.extract_raw(self.game.physics)
         obs = self.obs_extractor.normalize_observation(raw_obs)
 
+        # Update distance buffer before reward (so _calc_reward can use smoothed velocity)
+        dist = self.game.game_state.score
+        if len(self._distance_buffer) < self._distance_buffer_size:
+            self._distance_buffer.append(dist)
+        else:
+            self._distance_buffer.pop()
+            self._distance_buffer.insert(0, dist)
+
         reward = self._calc_reward()
         self._total_reward += reward
         terminated = self.game.game_state.game_ended
@@ -181,28 +192,24 @@ class QWOPEnv(gymnasium.Env):
         self._last_action = action
         self._episode_steps += 1
 
-        # Update distance buffer for rolling speed (matches qwop-gym FN_UPDATE_STATS)
-        dist = self.game.game_state.score
-        if len(self._distance_buffer) < self._distance_buffer_size:
-            self._distance_buffer.append(dist)
-        else:
-            self._distance_buffer.pop()
-            self._distance_buffer.insert(0, dist)
-
         return obs, reward, terminated, False, info
     
     def _calc_reward(self):
         """
-        Calculate reward based on velocity and time cost.
+        Calculate reward based on distance, velocity, and time cost.
 
         Uses protocol-scale dt to match qwop-wr (browser env) exactly. qwop-wr sends
         time = scoreTime/10 where scoreTime advances by stepsize*(1/30) per step.
         Python uses real physics seconds (0.04 per tick), so we use dt_protocol instead
         of raw dt for 1-to-1 reward parity.
 
-        Reward = velocity - time_cost + terminal_bonus
+        Velocity is SMOOTHED over the distance buffer when len(buffer) >= 2 to prevent
+        oscillation/jitter from generating spurious rewards when the agent is stationary.
+
+        Reward = distance_rew_mult * ds + velocity * speed_rew_mult - time_cost + terminal_bonus
         where:
-          velocity = (distance - last_distance) / dt_protocol
+          ds = distance - last_distance (meters traveled)
+          velocity = smoothed over buffer when available, else instantaneous
           time_cost = time_cost_mult * dt_protocol / frames_per_step
           dt_protocol = frames_per_step * (1/30) / 10  (matches qwop-wr extensions.js)
           terminal_bonus = success_reward if success, -failure_cost if fall
@@ -217,9 +224,23 @@ class QWOPEnv(gymnasium.Env):
         dt_protocol = self.frames_per_step * (1 / 30) / 10
         dt_protocol = max(dt_protocol, 1e-8)
 
-        velocity = ds / dt_protocol
-        reward = velocity * self.speed_rew_mult - (
-            self.time_cost_mult * dt_protocol / self.frames_per_step
+        # Use smoothed velocity over buffer when available (prevents oscillation exploitation)
+        buf = self._distance_buffer
+        if len(buf) >= 2:
+            if len(buf) < self._distance_buffer_size:
+                # Growing: buf = [oldest, ..., newest]
+                ds_smooth = buf[-1] - buf[0]
+            else:
+                # Full: buf = [newest, oldest, ..., second_newest]
+                ds_smooth = buf[0] - buf[1]
+            dt_smooth = (len(buf) - 1) * dt_protocol
+            velocity = ds_smooth / dt_smooth if dt_smooth > 0 else 0.0
+        else:
+            velocity = ds / dt_protocol
+        reward = (
+            self.distance_rew_mult * ds
+            + velocity * self.speed_rew_mult
+            - (self.time_cost_mult * dt_protocol / self.frames_per_step)
         )
         
         # Terminal bonuses/penalties
