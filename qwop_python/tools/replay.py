@@ -49,7 +49,10 @@ def replay(fps, recordings, reset_delay, steps_per_step):
                             time.sleep(sleep_for)
                     print("Playing episode %d" % i)
 
-                    common.play_model(env, fps, steps_per_step, model, obs)
+                    try:
+                        common.play_model(env, fps, steps_per_step, model, obs)
+                    except common.UserQuitRequested:
+                        return
                     episode_ended_at = time.time()
                     obs, _ = env.reset()
 

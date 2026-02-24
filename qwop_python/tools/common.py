@@ -259,6 +259,10 @@ def lr_from_schedule(schedule):
     exit(1)
 
 
+class UserQuitRequested(Exception):
+    """Raised when the user closes the pygame window via native controls."""
+
+
 def skip_episode(env, steps_per_step, model):
     """Fast-forward through a skipped episode without rendering."""
     terminated = False
@@ -281,13 +285,24 @@ def skip_episode(env, steps_per_step, model):
         pass
 
 
+def _check_pygame_quit(env):
+    """Process pygame events and raise UserQuitRequested if user closed the window."""
+    if getattr(env.unwrapped, "render_mode", None) == "human":
+        import pygame
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                raise UserQuitRequested()
+
+
 def play_model(env, fps, steps_per_step, model, obs):
     terminated = False
     clock = Clock(fps)
 
     while not terminated:
+        _check_pygame_quit(env)
         action, _states = model.predict(obs)
         for _ in range(steps_per_step):
+            _check_pygame_quit(env)
             obs, reward, terminated, truncated, info = env.step(action)
             env.render()
             clock.tick()
