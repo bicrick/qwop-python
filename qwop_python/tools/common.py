@@ -91,7 +91,7 @@ def expand_env_kwargs(env_kwargs):
     return env_kwargs
 
 
-def register_env(env_kwargs=None, env_wrappers=None):
+def register_env(env_kwargs=None, env_wrappers=None, env_id="local/QWOP-v1"):
     if env_kwargs is None:
         env_kwargs = {}
     if env_wrappers is None:
@@ -109,7 +109,7 @@ def register_env(env_kwargs=None, env_wrappers=None):
         return env
 
     register(
-        id="local/QWOP-v1",
+        id=env_id,
         entry_point=wrapped_env_creator,
         kwargs=env_kwargs,
     )

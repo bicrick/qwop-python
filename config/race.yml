@@ -1,0 +1,26 @@
+---
+# fps: 30 = real-time, 60 = 2x, etc. One physics step per tick.
+fps: 30
+reset_delay: 1
+
+steps_per_step: 4
+
+base_env_kwargs:
+  __include__: "config/env.yml"
+  frames_per_step: 1
+
+model_a:
+  file: "data/PPO3-lw36p4ud/model.zip"
+  mod: "stable_baselines3"
+  cls: "PPO"
+  name: "PPO3"
+  env_kwargs: {}
+
+model_b:
+  file: "data/PPO2-ma7t0njn/model.zip"
+  mod: "stable_baselines3"
+  cls: "PPO"
+  name: "PPO2"
+  env_kwargs: {}
+
+env_wrappers: []

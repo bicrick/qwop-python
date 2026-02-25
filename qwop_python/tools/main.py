@@ -27,6 +27,13 @@ from . import common
 
 def run(action, cfg, cli_overrides=None):
     cli_overrides = cli_overrides or {}
+
+    if action == "race":
+        ensure_sb3_installed()
+        from .race import race
+        race(cfg)
+        return
+
     env_wrappers = cfg.pop("env_wrappers", [])
     env_kwargs = cfg.pop("env_kwargs", {})
     expanded_env_kwargs = common.expand_env_kwargs(env_kwargs)
@@ -142,6 +149,7 @@ def run_bootstrap():
         "record.yml",
         "replay.yml",
         "spectate.yml",
+        "race.yml",
         "benchmark.yml",
         "train_ppo.yml",
         "train_qrdqn.yml",
@@ -188,6 +196,7 @@ action:
   record            play with recording (-c config/record.yml)
   replay            replay recorded actions
   spectate          watch trained model play
+  race              race two models side by side
   benchmark         measure env steps/sec
   train_ppo         train using PPO
   train_dqn         train using DQN
@@ -200,6 +209,7 @@ examples:
   %(prog)s play
   %(prog)s -c config/record.yml play
   %(prog)s spectate
+  %(prog)s race
   %(prog)s train_ppo
 """
 
