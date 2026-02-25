@@ -1,0 +1,42 @@
+---
+# Stage 4 PPO: Load completed PPO 3 model, continue training with same rewards.
+# Run: qwop-python train_ppo -c config/train_ppo_4.yml
+
+seed: ~
+run_id: ~
+
+# Path to completed PPO 3 model
+model_load_file: "data/PPO3-lw36p4ud/model.zip"
+
+out_dir_template: "data/PPO4-{run_id}"
+log_tensorboard: true
+
+# Additional 10M steps beyond PPO 3 (same reward structure, extended training)
+total_timesteps: 10_000_000
+max_episode_steps: 5000
+n_checkpoints: 5
+n_envs: 8
+
+learner_kwargs:
+  policy: "MlpPolicy"
+  use_sde: false
+  sde_sample_freq: 4
+  n_steps: 2048
+  batch_size: 32
+  n_epochs: 10
+  gamma: 0.95
+  gae_lambda: 0.98
+  clip_range: 0.4
+  normalize_advantage: true
+  ent_coef: 0.001
+  vf_coef: 0.5
+  max_grad_norm: 3
+
+learner_lr_schedule: "const_0.0001"
+
+env_kwargs:
+  __include__: "config/env.yml"
+  frames_per_step: 4
+  reduced_action_set: false
+
+env_wrappers: []

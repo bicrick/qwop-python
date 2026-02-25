@@ -1,19 +1,19 @@
 ---
-# Stage 2 PPO: Load competent model, continue training with progressive speed incentive.
+# Stage 2 PPO: Load completed PPO 1 model, continue training with same rewards.
 # Run: qwop-python train_ppo -c config/train_ppo_2.yml
-# Set model_load_file to your competent model before running.
+# Set model_load_file to your completed PPO 1 model before running.
 
 seed: ~
 run_id: ~
 
-# Path to competent model from stage 1 (e.g., PPO-jxan0tk8)
+# Path to completed PPO 1 model (e.g., PPO-jxan0tk8)
 model_load_file: "data/PPO-jxan0tk8/model.zip"
 
 out_dir_template: "data/PPO2-{run_id}"
 log_tensorboard: true
 
-# Shorter than stage 1; speed optimization phase
-total_timesteps: 2_000_000
+# Additional 5M steps beyond PPO 1 (same reward structure, extended training)
+total_timesteps: 5_000_000
 max_episode_steps: 5000
 n_checkpoints: 5
 n_envs: 8
@@ -41,14 +41,5 @@ env_kwargs:
   frames_per_step: 4
   reduced_action_set: false
 
-# Progressive velocity incentive: start identical to base, hold briefly, ramp slowly
-env_wrappers:
-  - module: "qwop_python.wrappers.reward_shaping_wrapper"
-    cls: "ProgressiveVelocityIncentiveWrapper"
-    kwargs:
-      initial_velocity_weight: 0.0   # start identical to base (no bonus)
-      final_velocity_weight: 0.5    # modest speed incentive
-      initial_exponent: 1.5
-      final_exponent: 2.0            # gentler curve
-      hold_fraction: 0.1             # hold at initial for first 10%, let policy stabilize
-      ramp_fraction: 0.95            # ramp completes at 95% of training
+# Same rewards as PPO 1 (no reward shaping)
+env_wrappers: []

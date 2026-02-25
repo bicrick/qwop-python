@@ -1,8 +1,8 @@
 ---
-fps: 30
+fps: 120
 reset_delay: 1
 
-model_file: "data/PPO-jxan0tk8/model.zip"
+model_file: "data/PPO3-lw36p4ud/model.zip"
 model_mod: "stable_baselines3"
 model_cls: "PPO"
 
