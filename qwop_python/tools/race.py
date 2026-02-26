@@ -44,47 +44,49 @@ def _to_time_str(seconds):
 
 
 def _draw_race_panel(screen, x, y, name_a, name_b, stats, info_a=None, info_b=None):
-    """Draw the center stats panel with game-style styling and column-separated layout."""
+    """Draw the center stats panel with CSS-like styling: rounded corners, shadows, card layout."""
     import pygame
 
     panel_w = RACE_PANEL_WIDTH
     panel_h = HEADER_HEIGHT + SCREEN_HEIGHT
-
-    pad = 6
-    col_label = 100
-    col_a = 100
-    col_b = 100
-    cell_h = 18
+    pad = 12
+    col_label = 110
+    col_a = 95
+    col_b = 95
+    cell_h = 20
 
     pygame.font.init()
-    title_font = pygame.font.SysFont("verdana", 14, bold=True)
-    header_font = pygame.font.SysFont("verdana", 12, bold=True)
-    value_font = pygame.font.SysFont("verdana", 11)
+    title_font = pygame.font.SysFont("verdana", 15, bold=True)
+    header_font = pygame.font.SysFont("verdana", 13, bold=True)
+    value_font = pygame.font.SysFont("verdana", 12)
     micro_font = pygame.font.SysFont("verdana", 10)
 
-    bg_dark = (28, 30, 34)
-    border = (70, 75, 85)
-    text_primary = (240, 242, 245)
-    text_muted = (160, 165, 175)
-    accent_a = (100, 180, 120)
-    accent_b = (100, 150, 200)
+    bg_panel = (22, 25, 30)
+    bg_card = (30, 34, 42)
+    shadow = (12, 14, 18)
+    border = (55, 62, 75)
+    text_primary = (248, 250, 252)
+    text_secondary = (180, 188, 200)
+    text_muted = (120, 130, 145)
+    accent_a = (72, 187, 120)
+    accent_b = (96, 165, 250)
+    divider = (45, 52, 65)
 
-    pygame.draw.rect(screen, bg_dark, (x, y, panel_w, panel_h))
-    pygame.draw.rect(screen, border, (x, y, panel_w, panel_h), 2)
-    divider_x = x + pad + col_label + col_a + 2
-    pygame.draw.line(screen, border, (divider_x, y + pad), (divider_x, y + panel_h - pad), 1)
+    rect = pygame.Rect(x, y, panel_w, panel_h)
+    shadow_rect = rect.move(4, 4)
 
-    row_y = y + pad
+    pygame.draw.rect(screen, shadow, shadow_rect)
+    pygame.draw.rect(screen, bg_panel, rect)
+    pygame.draw.rect(screen, border, rect, 1)
 
-    title = title_font.render("RACE STATS", True, text_primary)
+    row_y = y + pad + 4
+    title = title_font.render("RACE STATS", True, text_secondary)
     screen.blit(title, (x + (panel_w - title.get_width()) // 2, row_y))
-    row_y += cell_h + 4
+    row_y += cell_h + 8
 
-    pygame.draw.line(screen, border, (x + pad, row_y), (x + panel_w - pad, row_y), 1)
-    row_y += pad + 2
-
-    col_a_x = x + pad + col_label + 4
-    col_b_x = x + pad + col_label + col_a + 4
+    col_a_x = x + pad + col_label + 6
+    col_b_x = x + pad + col_label + col_a + 12
+    divider_x = x + pad + col_label + col_a + 6
 
     def _row(label, val_a, val_b, label_color=None):
         nonlocal row_y
@@ -92,9 +94,9 @@ def _draw_race_panel(screen, x, y, name_a, name_b, stats, info_a=None, info_b=No
         surf_l = value_font.render(str(label), True, lc)
         surf_a = value_font.render(str(val_a), True, text_primary)
         surf_b = value_font.render(str(val_b), True, text_primary)
-        screen.blit(surf_l, (x + pad, row_y + 2))
-        screen.blit(surf_a, (col_a_x, row_y + 2))
-        screen.blit(surf_b, (col_b_x, row_y + 2))
+        screen.blit(surf_l, (x + pad, row_y + 3))
+        screen.blit(surf_a, (col_a_x, row_y + 3))
+        screen.blit(surf_b, (col_b_x, row_y + 3))
         row_y += cell_h
 
     total_runs = stats.get("total_runs", 0)
@@ -121,44 +123,45 @@ def _draw_race_panel(screen, x, y, name_a, name_b, stats, info_a=None, info_b=No
     avg_speed_a = sum(speeds_a) / len(speeds_a) if speeds_a else 0
     avg_speed_b = sum(speeds_b) / len(speeds_b) if speeds_b else 0
 
+    header_rect = pygame.Rect(x + pad, row_y - 2, panel_w - pad * 2, cell_h + 6)
+    pygame.draw.rect(screen, bg_card, header_rect, border_radius=6)
     header_a = header_font.render(name_a, True, accent_a)
     header_b = header_font.render(name_b, True, accent_b)
-    screen.blit(header_a, (col_a_x, row_y - 2))
-    screen.blit(header_b, (col_b_x, row_y - 2))
-    row_y += cell_h
-    pygame.draw.line(screen, border, (x + pad, row_y), (x + panel_w - pad, row_y), 1)
-    row_y += pad
+    screen.blit(header_a, (col_a_x, row_y))
+    screen.blit(header_b, (col_b_x, row_y))
+    pygame.draw.line(screen, divider, (divider_x, row_y - 2), (divider_x, row_y + cell_h + 6), 1)
+    row_y += cell_h + 10
 
     _row("Wins", wins_a, wins_b)
     _row("Win %", f"{win_pct_a:.0f}%", f"{win_pct_b:.0f}%")
     _row("Completes", f"{completes_a} ({complete_pct_a:.0f}%)", f"{completes_b} ({complete_pct_b:.0f}%)")
     _row("Falls", falls_a, falls_b)
-    row_y += 4
+    row_y += 6
     _row("Avg time", _to_time_str(avg_time_a) if times_a else "-", _to_time_str(avg_time_b) if times_b else "-")
     _row("Best time", _to_time_str(best_time_a) if times_a else "-", _to_time_str(best_time_b) if times_b else "-")
     _row("Avg speed", f"{avg_speed_a:.1f} m/s" if speeds_a else "-", f"{avg_speed_b:.1f} m/s" if speeds_b else "-")
 
-    row_y += 8
-    pygame.draw.line(screen, border, (x + pad, row_y), (x + panel_w - pad, row_y), 1)
-    row_y += pad + 2
-    races_text = value_font.render(f"Decisive races: {decisive}  |  Total runs: {total_runs}", True, text_muted)
-    screen.blit(races_text, (x + pad, row_y + 2))
-    row_y += cell_h
+    row_y += 10
+    summary_rect = pygame.Rect(x + pad, row_y, panel_w - pad * 2, cell_h + 8)
+    pygame.draw.rect(screen, bg_card, summary_rect, border_radius=6)
+    races_text = micro_font.render(f"Decisive: {decisive}  |  Total runs: {total_runs}", True, text_muted)
+    screen.blit(races_text, (x + pad + 8, row_y + 6))
+    row_y += cell_h + 14
 
     if info_a and info_b:
-        row_y += 36
-        pygame.draw.line(screen, border, (x + pad, row_y), (x + panel_w - pad, row_y), 1)
-        row_y += pad + 2
-        live_header = micro_font.render("Current race", True, text_muted)
-        screen.blit(live_header, (x + pad, row_y))
-        row_y += cell_h
+        live_rect = pygame.Rect(x + pad, row_y, panel_w - pad * 2, 4 * cell_h + 16)
+        pygame.draw.rect(screen, bg_card, live_rect, border_radius=6)
+        row_y += 8
+        live_header = micro_font.render("LIVE", True, text_muted)
+        screen.blit(live_header, (x + pad + 8, row_y))
+        row_y += cell_h + 4
         d_a = info_a.get("distance", 0)
         d_b = info_b.get("distance", 0)
         t_a = info_a.get("time", 0)
         t_b = info_b.get("time", 0)
         s_a = info_a.get("avgspeed", 0)
         s_b = info_b.get("avgspeed", 0)
-        _row("Distance", f"{d_a:.1f}m", f"{d_b:.1f}m")
+        _row("Distance", f"{d_a:.1f} m", f"{d_b:.1f} m")
         _row("Time", _to_time_str(t_a), _to_time_str(t_b))
         _row("Speed", f"{s_a:.1f} m/s", f"{s_b:.1f} m/s")
 

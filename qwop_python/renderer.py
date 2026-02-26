@@ -267,28 +267,36 @@ class QWOPRenderer:
 
     def draw_observation_panel(self, screen, x, y, raw_obs, info):
         """
-        Draw observation/stats panel matching qwop-gym QWOP.html layout one-to-one.
-
-        Summary: 4 cols x 25% (100px), labels right-align, values left-align
-        Metrics: observation col 25% (100px), 5 numeric cols 15% (60px) each, right-align values
+        Draw observation/stats panel with CSS-like styling: rounded corners, shadows, cards.
         """
         import time as time_module
         panel_w = OBS_PANEL_WIDTH
         panel_h = SCREEN_HEIGHT
-        pygame.draw.rect(screen, (40, 40, 40), (x, y, panel_w, panel_h))
-        pygame.draw.rect(screen, (80, 80, 80), (x, y, panel_w, panel_h), 1)
+        pad = 8
 
-        pad = 5
-        row_y = y + pad
+        bg_panel = (22, 25, 30)
+        bg_card = (30, 34, 42)
+        shadow = (12, 14, 18)
+        border = (55, 62, 75)
+        text_primary = (248, 250, 252)
+        text_secondary = (180, 188, 200)
+        text_muted = (120, 130, 145)
+
+        rect = pygame.Rect(x, y, panel_w, panel_h)
+        shadow_rect = rect.move(4, 4)
+        pygame.draw.rect(screen, shadow, shadow_rect)
+        pygame.draw.rect(screen, bg_panel, rect)
+        pygame.draw.rect(screen, border, rect, 1)
+
+        row_y = y + pad + 4
 
         def _toclock(s):
-            """Format seconds as MM:SS.N (matches qwop-gym extensions.js)"""
             m = int(s // 60)
             sec = int(s % 60)
             tenth = int((s - int(s)) * 10) % 10
             return "%02d:%02d.%d" % (m, sec, tenth)
 
-        def _cell_text(text, cx, cy, cell_w, font=None, color=(255, 255, 255), align="left"):
+        def _cell_text(text, cx, cy, cell_w, font=None, color=text_primary, align="left"):
             f = font or self.table_font
             surf = f.render(str(text), True, color)
             if align == "right":
@@ -299,43 +307,50 @@ class QWOPRenderer:
                 px = cx
             screen.blit(surf, (px, cy))
 
-        # Summary table (matches qwop-gym #summary: td.name 25%, td.value 25%, 14px)
-        cell_w = 100  # 25% of 400
+        title = self.summary_font.render("OBSERVATION", True, text_secondary)
+        screen.blit(title, (x + (panel_w - title.get_width()) // 2, row_y))
+        row_y += 20
+
+        summary_rect = pygame.Rect(x + pad, row_y, panel_w - pad * 2, 72)
+        pygame.draw.rect(screen, bg_card, summary_rect, border_radius=6)
+        row_y += 6
+        cell_w = 95
         steps = info.get("episode_steps", 0)
         tot_rew = info.get("total_reward", 0)
         avgspeed = info.get("avgspeed", 0)
         distance = info.get("distance", 0)
-        _cell_text("Steps:", x + pad, row_y, cell_w, self.summary_font, (220, 220, 220), "right")
-        _cell_text(str(steps), x + pad + cell_w, row_y, cell_w, self.summary_font, align="left")
-        _cell_text("Reward:", x + pad + cell_w * 2, row_y, cell_w, self.summary_font, (220, 220, 220), "right")
-        _cell_text("%.2f" % tot_rew, x + pad + cell_w * 3, row_y, cell_w, self.summary_font, align="left")
-        row_y += 16
-        _cell_text("Speed:", x + pad, row_y, cell_w, self.summary_font, (220, 220, 220), "right")
-        _cell_text("%.1f m/s" % avgspeed, x + pad + cell_w, row_y, cell_w, self.summary_font, align="left")
-        _cell_text("Distance:", x + pad + cell_w * 2, row_y, cell_w, self.summary_font, (220, 220, 220), "right")
-        _cell_text("%.1f m" % distance, x + pad + cell_w * 3, row_y, cell_w, self.summary_font, align="left")
-        row_y += 16
+        _cell_text("Steps:", x + pad + 4, row_y, cell_w, self.summary_font, text_muted, "right")
+        _cell_text(str(steps), x + pad + cell_w, row_y, cell_w, self.summary_font)
+        _cell_text("Reward:", x + pad + cell_w * 2 + 4, row_y, cell_w, self.summary_font, text_muted, "right")
+        _cell_text("%.2f" % tot_rew, x + pad + cell_w * 3, row_y, cell_w, self.summary_font)
+        row_y += 18
+        _cell_text("Speed:", x + pad + 4, row_y, cell_w, self.summary_font, text_muted, "right")
+        _cell_text("%.1f m/s" % avgspeed, x + pad + cell_w, row_y, cell_w, self.summary_font)
+        _cell_text("Distance:", x + pad + cell_w * 2 + 4, row_y, cell_w, self.summary_font, text_muted, "right")
+        _cell_text("%.1f m" % distance, x + pad + cell_w * 3, row_y, cell_w, self.summary_font)
+        row_y += 18
         real_elapsed = time_module.time() - info.get("episode_start_time", 0)
         game_time = info.get("time", 0)
-        _cell_text("Real time:", x + pad, row_y, cell_w, self.summary_font, (220, 220, 220), "right")
-        _cell_text(_toclock(real_elapsed), x + pad + cell_w, row_y, cell_w, self.summary_font, align="left")
-        _cell_text("Game time:", x + pad + cell_w * 2, row_y, cell_w, self.summary_font, (220, 220, 220), "right")
-        _cell_text(_toclock(game_time), x + pad + cell_w * 3, row_y, cell_w, self.summary_font, align="left")
-        row_y += 26  # spacer-row padding-top 10px + row height
+        _cell_text("Real:", x + pad + 4, row_y, cell_w, self.summary_font, text_muted, "right")
+        _cell_text(_toclock(real_elapsed), x + pad + cell_w, row_y, cell_w, self.summary_font)
+        _cell_text("Game:", x + pad + cell_w * 2 + 4, row_y, cell_w, self.summary_font, text_muted, "right")
+        _cell_text(_toclock(game_time), x + pad + cell_w * 3, row_y, cell_w, self.summary_font)
+        row_y += 24
 
-        # Metrics header (qwop-gym: first cell white/black, others black/white, all center)
-        obs_col_w = 100  # 25%
-        num_col_w = 60   # 15%
-        header_h = 18
-        pygame.draw.rect(screen, (255, 255, 255), (x, row_y, obs_col_w, header_h))
-        _cell_text("observation", x, row_y, obs_col_w, self.table_font, (0, 0, 0), "center")
-        pygame.draw.rect(screen, (0, 0, 0), (x + obs_col_w, row_y, num_col_w * 5, header_h))
-        for j, label in enumerate(["x-pos", "y-pos", "angle", "x-vel", "y-vel"]):
-            _cell_text(label, x + obs_col_w + j * num_col_w, row_y, num_col_w, self.table_font, (255, 255, 255), "center")
-        row_y += header_h
+        obs_col_w = 100
+        num_col_w = 56
+        header_h = 20
+        header_rect = pygame.Rect(x + pad, row_y, panel_w - pad * 2, header_h)
+        pygame.draw.rect(screen, bg_card, header_rect, border_radius=6)
+        _cell_text("Part", x + pad + 4, row_y + 2, obs_col_w, self.table_font, text_muted, "center")
+        for j, label in enumerate(["x", "y", "ang", "vx", "vy"]):
+            _cell_text(label, x + pad + obs_col_w + j * num_col_w, row_y + 2, num_col_w, self.table_font, text_muted, "center")
+        row_y += header_h + 2
 
-        # Body part rows (first col black/white center, 5 cols right-align)
         if raw_obs is not None and len(raw_obs) >= 60:
+            metrics_rect = pygame.Rect(x + pad, row_y, panel_w - pad * 2, 12 * 16 + 8)
+            pygame.draw.rect(screen, bg_card, metrics_rect, border_radius=6)
+            row_y += 4
             for i, part_key in enumerate(ObservationExtractor.BODY_PART_ORDER):
                 label = BODY_PART_DISPLAY_LABELS.get(part_key, part_key)
                 idx = i * 5
@@ -343,14 +358,16 @@ class QWOPRenderer:
                     raw_obs[idx], raw_obs[idx + 1], raw_obs[idx + 2],
                     raw_obs[idx + 3], raw_obs[idx + 4]
                 )
-                pygame.draw.rect(screen, (0, 0, 0), (x, row_y, obs_col_w, 15))
-                _cell_text(label, x, row_y, obs_col_w, self.table_font, (255, 255, 255), "center")
-                _cell_text("%.1f" % v0, x + obs_col_w, row_y, num_col_w, self.table_font, align="right")
-                _cell_text("%.1f" % v1, x + obs_col_w + num_col_w, row_y, num_col_w, self.table_font, align="right")
-                _cell_text("%.1f" % v2, x + obs_col_w + num_col_w * 2, row_y, num_col_w, self.table_font, align="right")
-                _cell_text("%.1f" % v3, x + obs_col_w + num_col_w * 3, row_y, num_col_w, self.table_font, align="right")
-                _cell_text("%.1f" % v4, x + obs_col_w + num_col_w * 4, row_y, num_col_w, self.table_font, align="right")
-                row_y += 15
+                row_color = (35, 39, 48) if i % 2 == 1 else bg_card
+                row_rect = pygame.Rect(x + pad + 4, row_y, panel_w - pad * 2 - 8, 15)
+                pygame.draw.rect(screen, row_color, row_rect, border_radius=2)
+                _cell_text(label, x + pad + 4, row_y + 1, obs_col_w - 8, self.table_font, text_primary, "center")
+                _cell_text("%.1f" % v0, x + pad + obs_col_w, row_y + 1, num_col_w, self.table_font, align="right")
+                _cell_text("%.1f" % v1, x + pad + obs_col_w + num_col_w, row_y + 1, num_col_w, self.table_font, align="right")
+                _cell_text("%.1f" % v2, x + pad + obs_col_w + num_col_w * 2, row_y + 1, num_col_w, self.table_font, align="right")
+                _cell_text("%.1f" % v3, x + pad + obs_col_w + num_col_w * 3, row_y + 1, num_col_w, self.table_font, align="right")
+                _cell_text("%.1f" % v4, x + pad + obs_col_w + num_col_w * 4, row_y + 1, num_col_w, self.table_font, align="right")
+                row_y += 16
     
     def _draw_background(self, game):
         """

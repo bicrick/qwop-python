@@ -1,6 +1,6 @@
 ---
 # fps: 30 = real-time, 60 = 2x, etc. One physics step per tick.
-fps: 30
+fps: 240
 reset_delay: 1
 
 steps_per_step: 4
@@ -10,17 +10,17 @@ base_env_kwargs:
   frames_per_step: 1
 
 model_a:
-  file: "data/PPO3-lw36p4ud/model.zip"
+  file: "data/PPO5-olympus/model.zip"
   mod: "stable_baselines3"
   cls: "PPO"
-  name: "PPO3"
+  name: "PPO5"
   env_kwargs: {}
 
 model_b:
-  file: "data/PPO2-ma7t0njn/model.zip"
+  file: "data/PPO6-olympus/model.zip"
   mod: "stable_baselines3"
   cls: "PPO"
-  name: "PPO2"
+  name: "PPO6"
   env_kwargs: {}
 
 env_wrappers: []

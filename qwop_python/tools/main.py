@@ -81,11 +81,11 @@ def run(action, cfg, cli_overrides=None):
         print("Not implemented: %s" % action)
         sys.exit(1)
 
-    if action in ("train_a2c", "train_ppo", "train_dqn", "train_qrdqn", "train_rppo"):
+    if action in ("train_a2c", "train_ppo", "train_ppo_5", "train_dqn", "train_qrdqn", "train_rppo"):
         ensure_sb3_installed()
         from .train_sb3 import train_sb3
 
-        learner_cls = action.split("_")[-1].upper()
+        learner_cls = "PPO5" if action == "train_ppo_5" else action.split("_")[-1].upper()
         default_template = "data/%s-{run_id}" % learner_cls
 
         run_config = deepcopy(
@@ -199,6 +199,7 @@ action:
   race              race two models side by side
   benchmark         measure env steps/sec
   train_ppo         train using PPO
+  train_ppo_5       train using PPO5 (success-only episode filtering)
   train_dqn         train using DQN
   train_qrdqn       train using QRDQN
   train_rppo        train using RPPO

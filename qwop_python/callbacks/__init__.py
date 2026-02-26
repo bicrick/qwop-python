@@ -1,3 +1,5 @@
-"""SB3 callbacks for QWOP training."""
+"""Custom callbacks for RL training."""
 
-__all__ = []
+from .episode_success_filter import EpisodeSuccessFilterCallback
+
+__all__ = ["EpisodeSuccessFilterCallback"]

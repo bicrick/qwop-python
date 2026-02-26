@@ -26,14 +26,21 @@ from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.utils import safe_mean
 
 from . import common
+from ..callbacks import EpisodeSuccessFilterCallback
+from ..learners import PPOSuccessFilter
 
 
 class LogCallback(BaseCallback):
     """Logs user-defined `info` values into tensorboard"""
 
     def _on_step(self) -> bool:
+        ep_buffer = self.model.ep_info_buffer
+        successful_eps = [ep for ep in ep_buffer if ep.get("is_success", 0)]
         for k in common.INFO_KEYS:
-            v = safe_mean([ep_info[k] for ep_info in self.model.ep_info_buffer])
+            if k == "is_success":
+                v = safe_mean([ep[k] for ep in ep_buffer])
+            else:
+                v = safe_mean([ep[k] for ep in successful_eps])
             self.model.logger.record(f"user/{k}", v)
         return True
 
@@ -86,6 +93,8 @@ def init_model(
             alg = stable_baselines3.A2C
         case "PPO":
             alg = stable_baselines3.PPO
+        case "PPO5":
+            alg = PPOSuccessFilter
         case "DQN":
             alg = stable_baselines3.DQN
         case "QRDQN":
@@ -161,6 +170,8 @@ def train_sb3(
                 name_prefix="model",
             ),
         ]
+        if learner_cls == "PPO5":
+            callbacks.insert(0, EpisodeSuccessFilterCallback())
         scheduler = VelocityRewardSchedulerCallback(venv, total_timesteps)
         if scheduler._wrappers:
             callbacks.append(scheduler)

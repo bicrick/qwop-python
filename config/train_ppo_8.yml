@@ -1,0 +1,41 @@
+---
+# PPO8: 30M more steps from PPO7-pp42769z.
+# Run: qwop-python train_ppo_5 -c config/train_ppo_8.yml
+
+seed: ~
+run_id: ~
+
+model_load_file: "data/PPO7-pp42769z/model.zip"
+
+out_dir_template: "data/PPO8-{run_id}"
+log_tensorboard: true
+
+total_timesteps: 30_000_000
+max_episode_steps: 5000
+n_checkpoints: 5
+n_envs: 8
+
+learner_kwargs:
+  policy: "MlpPolicy"
+  use_sde: false
+  sde_sample_freq: 4
+  n_steps: 2048
+  batch_size: 32
+  n_epochs: 10
+  gamma: 0.95
+  gae_lambda: 0.98
+  clip_range: 0.4
+  normalize_advantage: true
+  ent_coef: 0.001
+  vf_coef: 0.5
+  max_grad_norm: 3
+
+learner_lr_schedule: "const_0.0001"
+
+env_kwargs:
+  __include__: "config/env.yml"
+  frames_per_step: 4
+  reduced_action_set: false
+  failure_cost: 0
+
+env_wrappers: []
