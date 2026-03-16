@@ -1,5 +1,9 @@
 # QWOP Python
 
+![made-with-python](https://img.shields.io/badge/Made%20with-Python-1f425f.svg)
+![Open Source Love](https://badges.frapsoft.com/os/v1/open-source.svg?v=103)
+![License: Apache-2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)
+
 A Gymnasium environment for Bennet Foddy's game [QWOP](https://www.foddy.net/Athletics.html) - a pure Python Box2D implementation forked from [qwop-gym](https://github.com/smanolloff/qwop-gym).
 
 ![qwop-python](./doc/qwop-python.gif)
