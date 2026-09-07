@@ -82,6 +82,12 @@ python scripts/wr_dashboard.py --port 8787 \
 - heartbeat → `metrics/runs/<job_id>/heartbeat.json`
 - artifacts → `artifacts/runs/<job_id>/`
 
+Optional metadata `train-action` (e.g. `train_qrdqn`) overrides filename
+inference. Inference matches `*qrdqn*` before `*dqn*` so
+`scout_qrdqn_phase_a.yml` does not become `train_dqn`.
+`create_workers.sh --train-action …` always writes the resolved action into
+instance metadata.
+
 Claiming / moving queue objects is orchestrator policy (Bot). Workers may
 be handed an already-`running` job id via metadata.
 
