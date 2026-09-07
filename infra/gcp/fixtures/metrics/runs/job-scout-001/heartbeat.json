@@ -1,0 +1,16 @@
+{
+  "job_id": "job-scout-001",
+  "hostname": "qwop-wr-20260907-1",
+  "zone": "us-central1-a",
+  "steps": 84000,
+  "success_rate": 0.01,
+  "ep_rew_mean": 1.2,
+  "best_hud_time": 63.4,
+  "last_hud_time": 68.1,
+  "split_100m_time": null,
+  "fps": 410.0,
+  "status": "running",
+  "updated_at": "2099-01-01T00:00:00Z",
+  "config": "config/sweeps/scout_ppo_fps2.yml",
+  "source": "gcp"
+}

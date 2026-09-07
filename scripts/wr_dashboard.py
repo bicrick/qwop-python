@@ -1,16 +1,25 @@
 #!/usr/bin/env python3
-"""Live QWOP World Record progress dashboard.
+"""Live QWOP World Record progress dashboard (read-only).
+
+Control plane: ``gs://qwop-wr-training`` (see ``infra/gcp/CONTROL_PLANE.md``).
 
 Serves:
   GET /           — dark single-page UI (auto-refresh ~8s)
-  GET /api/status — JSON snapshot of local TB runs + optional GCS heartbeats
+  GET /api/status — JSON snapshot
 
-Times shown are **HUD seconds** (game score clock, 1/30 s per update),
-not W&B / qwop-gym protocol time (~HUD/10).
+Shows:
+  - Leaderboard vs Human WR 45.530 / AI 47.34 / expert ~55.6 HUD
+  - Live runs (local TensorBoard + GCS heartbeats)
+  - Queue depth (pending/running/done/failed)
+  - Fleet size (from state/fleet.json)
+
+Dashboard never mutates GCS. Orchestration is Grok Bot; agents = code;
+spot VMs = training.
 
 Examples:
   python scripts/wr_dashboard.py --port 8787
-  python scripts/wr_dashboard.py --port 8787 --gcs-prefix gs://qwop-wr-training/metrics/
+  python scripts/wr_dashboard.py --port 8787 --gcs-bucket gs://qwop-wr-training
+  python scripts/wr_dashboard.py --dump-status --fixture-dir infra/gcp/fixtures
 """
 
 from __future__ import annotations
@@ -27,13 +36,11 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import monitor_runs  # noqa: E402
+import wr_gcs  # noqa: E402
 
-# ---------------------------------------------------------------------------
-# WR targets (HUD seconds)
-# ---------------------------------------------------------------------------
 HUMAN_WR_HUD = 45.530  # kurodo1916
-AI_BEST_HUD = 47.34  # Liao (published AI)
-EXPERT_BASELINE_HUD = 55.6  # expert baseline ~HUD
+AI_BEST_HUD = 47.34  # Liao
+EXPERT_BASELINE_HUD = 55.6
 
 REFRESH_MS = 8000
 
@@ -43,160 +50,40 @@ def _utc_now_iso() -> str:
 
 
 def _progress_pct(best: float | None, target: float) -> float | None:
-    """How close best finish is to target. 100% = at/under target.
-
-    Uses expert baseline as the 'far' end so early runs aren't 0 forever.
-    """
     if best is None or best != best or best <= 0:
         return None
     if best <= target:
         return 100.0
-    # Map [target, expert*1.5] → [100, 0] roughly; clamp
     far = max(EXPERT_BASELINE_HUD * 1.5, target + 30.0)
     if best >= far:
         return 0.0
     return max(0.0, min(100.0, 100.0 * (far - best) / (far - target)))
 
 
-# ---------------------------------------------------------------------------
-# GCS heartbeats (optional)
-# ---------------------------------------------------------------------------
-def _parse_gs_uri(uri: str) -> tuple[str, str]:
-    """gs://bucket/prefix/ → (bucket, prefix)."""
-    if not uri.startswith("gs://"):
-        raise ValueError("GCS prefix must start with gs://")
-    rest = uri[5:]
-    bucket, _, prefix = rest.partition("/")
-    if not bucket:
-        raise ValueError("missing bucket in %s" % uri)
-    return bucket, prefix.lstrip("/")
-
-
-def read_gcs_heartbeats(gcs_prefix: str | None) -> list[dict]:
-    """Read heartbeat *.json under gs://.../metrics/ (runs/*/heartbeat.json).
-
-    Tries google.cloud.storage, then gsutil. Returns [] if unavailable.
-    """
-    if not gcs_prefix:
-        return []
-
-    try:
-        bucket_name, prefix = _parse_gs_uri(gcs_prefix.rstrip("/") + "/")
-    except ValueError as e:
-        return [{"run_id": "_gcs_error", "error": str(e), "source": "gcp"}]
-
-    heartbeats: list[dict] = []
-
-    # Prefer google-cloud-storage if installed
-    try:
-        from google.cloud import storage  # type: ignore
-
-        client = storage.Client()
-        bucket = client.bucket(bucket_name)
-        for blob in client.list_blobs(bucket_name, prefix=prefix):
-            name = blob.name
-            if not name.endswith(".json"):
-                continue
-            if "heartbeat" not in Path(name).name and not name.endswith(".json"):
-                continue
-            try:
-                raw = blob.download_as_text()
-                data = json.loads(raw)
-                if isinstance(data, dict):
-                    data.setdefault("source", "gcp")
-                    data.setdefault("gcs_path", "gs://%s/%s" % (bucket_name, name))
-                    heartbeats.append(data)
-            except Exception as ex:
-                heartbeats.append(
-                    {
-                        "run_id": Path(name).stem,
-                        "source": "gcp",
-                        "error": "parse failed: %s" % ex,
-                        "gcs_path": "gs://%s/%s" % (bucket_name, name),
-                    }
-                )
-        return heartbeats
-    except ImportError:
-        pass
-    except Exception as ex:
-        return [{"run_id": "_gcs_error", "error": "gcs client: %s" % ex, "source": "gcp"}]
-
-    # Fallback: gsutil
-    import subprocess
-
-    list_uri = "gs://%s/%s" % (bucket_name, prefix)
-    try:
-        proc = subprocess.run(
-            ["gsutil", "ls", "-r", list_uri],
-            capture_output=True,
-            text=True,
-            timeout=60,
-        )
-    except FileNotFoundError:
-        return [
-            {
-                "run_id": "_gcs_error",
-                "error": "Install google-cloud-storage or gsutil to read GCS heartbeats",
-                "source": "gcp",
-            }
-        ]
-    except Exception as ex:
-        return [{"run_id": "_gcs_error", "error": str(ex), "source": "gcp"}]
-
-    if proc.returncode != 0:
-        err = (proc.stderr or proc.stdout or "gsutil ls failed").strip()
-        # Empty prefix / no objects is fine
-        if "One or more URLs matched no objects" in err or "matched no objects" in err:
-            return []
-        return [{"run_id": "_gcs_error", "error": err, "source": "gcp"}]
-
-    for line in proc.stdout.splitlines():
-        line = line.strip()
-        if not line.endswith(".json"):
-            continue
-        if "heartbeat" not in Path(line).name and "/metrics/" not in line:
-            continue
-        try:
-            cat = subprocess.run(
-                ["gsutil", "cat", line],
-                capture_output=True,
-                text=True,
-                timeout=30,
-            )
-            if cat.returncode != 0:
-                continue
-            data = json.loads(cat.stdout)
-            if isinstance(data, dict):
-                data.setdefault("source", "gcp")
-                data.setdefault("gcs_path", line)
-                heartbeats.append(data)
-        except Exception:
-            continue
-
-    return heartbeats
+def _finite_min(vals):
+    good = [v for v in vals if isinstance(v, (int, float)) and v == v and v > 0]
+    return min(good) if good else None
 
 
 def _normalize_gcp_row(hb: dict) -> dict:
-    """Map heartbeat JSON → dashboard row schema."""
     status = (hb.get("status") or "").lower()
     updated = hb.get("updated_at")
     alive = status in ("running", "alive", "training")
-    # Stale if updated_at older than 3 minutes
     if updated and alive:
         try:
-            # Accept Z or offset
             ts = updated.replace("Z", "+00:00")
             dt = datetime.fromisoformat(ts)
             if dt.tzinfo is None:
                 dt = dt.replace(tzinfo=timezone.utc)
-            age = (datetime.now(timezone.utc) - dt).total_seconds()
-            if age > 180:
+            if (datetime.now(timezone.utc) - dt).total_seconds() > 180:
                 alive = False
         except ValueError:
             pass
 
+    run_id = hb.get("run_id") or hb.get("job_id") or hb.get("hostname") or "unknown"
     return {
-        "run_id": hb.get("run_id") or hb.get("hostname") or "unknown",
+        "run_id": run_id,
+        "job_id": hb.get("job_id") or run_id,
         "alive": alive if "error" not in hb else False,
         "pid": None,
         "source": "gcp",
@@ -218,16 +105,94 @@ def _normalize_gcp_row(hb: dict) -> dict:
     }
 
 
-def build_status(gcs_prefix: str | None = None, data_root: Path | None = None) -> dict:
+def _leaderboard_entries(leaderboard: dict, runs: list[dict]) -> list[dict]:
+    """Normalize leaderboard JSON, falling back to best times from live runs."""
+    entries = []
+    raw = leaderboard.get("entries") or leaderboard.get("rows") or []
+    if isinstance(raw, list) and raw:
+        for e in raw:
+            if not isinstance(e, dict):
+                continue
+            hud = e.get("best_hud_time") or e.get("hud_time") or e.get("time")
+            entries.append(
+                {
+                    "rank": e.get("rank"),
+                    "label": e.get("label") or e.get("name") or e.get("run_id") or e.get("job_id"),
+                    "best_hud_time": hud,
+                    "source": e.get("source") or "leaderboard",
+                    "job_id": e.get("job_id") or e.get("run_id"),
+                    "notes": e.get("notes"),
+                }
+            )
+    else:
+        # Derive from runs
+        scored = []
+        for r in runs:
+            t = r.get("best_hud_time") or r.get("best_split_100m_time") or r.get("split_100m_time")
+            if isinstance(t, (int, float)) and t == t and t > 0:
+                scored.append((t, r))
+        scored.sort(key=lambda x: x[0])
+        for i, (t, r) in enumerate(scored[:20], start=1):
+            entries.append(
+                {
+                    "rank": i,
+                    "label": r.get("run_id"),
+                    "best_hud_time": t,
+                    "source": r.get("source"),
+                    "job_id": r.get("job_id") or r.get("run_id"),
+                }
+            )
+
+    # Inject fixed reference rows for display context (not "our" runs)
+    refs = [
+        {"rank": None, "label": "Human WR (kurodo1916)", "best_hud_time": HUMAN_WR_HUD, "source": "ref"},
+        {"rank": None, "label": "AI best (Liao)", "best_hud_time": AI_BEST_HUD, "source": "ref"},
+        {"rank": None, "label": "Expert baseline", "best_hud_time": EXPERT_BASELINE_HUD, "source": "ref"},
+    ]
+    return {"references": refs, "entries": entries}
+
+
+def build_status(
+    gcs_bucket: str | None = wr_gcs.DEFAULT_BUCKET,
+    data_root: Path | None = None,
+    fixture_dir: Path | None = None,
+    skip_gcs: bool = False,
+) -> dict:
     local_rows = monitor_runs.collect_all_local_rows(data_root)
-    gcp_raw = read_gcs_heartbeats(gcs_prefix)
-    gcp_rows = [_normalize_gcp_row(h) for h in gcp_raw]
 
+    if skip_gcs and fixture_dir is None:
+        cp = {
+            "bucket": None,
+            "queue": {
+                "depth": {s: 0 for s in wr_gcs.QUEUE_STATES},
+                "pending": 0,
+                "running": 0,
+                "done": 0,
+                "failed": 0,
+                "total_active": 0,
+                "jobs": {},
+                "errors": [],
+            },
+            "fleet": {},
+            "fleet_size": 0,
+            "leaderboard": {},
+            "backlog": {},
+            "heartbeats": [],
+            "roles": {
+                "orchestrator": "Grok Bot (~15m routine)",
+                "code": "Cursor Cloud Agents: code only",
+                "trainers": "Spot VMs: training only",
+                "dashboard": "read-only",
+            },
+        }
+    else:
+        cp = wr_gcs.read_control_plane(
+            bucket=None if fixture_dir else gcs_bucket,
+            fixture_dir=fixture_dir,
+        )
+
+    gcp_rows = [_normalize_gcp_row(h) for h in cp.get("heartbeats") or []]
     runs = local_rows + gcp_rows
-
-    def _finite_min(vals):
-        good = [v for v in vals if isinstance(v, (int, float)) and v == v and v > 0]
-        return min(good) if good else None
 
     best_finish = _finite_min(
         [r.get("best_hud_time") for r in runs]
@@ -235,18 +200,26 @@ def build_status(gcs_prefix: str | None = None, data_root: Path | None = None) -
         + [r.get("best_split_100m_time") for r in runs]
         + [r.get("split_100m_time") for r in runs]
     )
-    best_split = _finite_min(
-        [r.get("best_split_100m_time") for r in runs]
-        + [r.get("split_100m_time") for r in runs]
-    )
+    # Also consider leaderboard entries
+    lb = cp.get("leaderboard") or {}
+    for e in lb.get("entries") or lb.get("rows") or []:
+        if isinstance(e, dict):
+            t = e.get("best_hud_time") or e.get("hud_time") or e.get("time")
+            if isinstance(t, (int, float)) and t == t and t > 0:
+                if best_finish is None or t < best_finish:
+                    best_finish = t
 
-    alive_count = sum(1 for r in runs if r.get("alive"))
+    board = _leaderboard_entries(lb, runs)
+    queue = cp.get("queue") or {}
+    depth = queue.get("depth") or {}
 
     return {
         "updated_at": _utc_now_iso(),
+        "read_only": True,
         "note": (
             "All finish / split times are HUD seconds (game score clock), "
-            "not W&B protocol time. Human WR 45.530s is HUD time (kurodo1916)."
+            "not W&B protocol time. Human WR 45.530s is HUD time (kurodo1916). "
+            "Dashboard is read-only; Grok Bot orchestrates the farm."
         ),
         "targets": {
             "human_wr_hud": HUMAN_WR_HUD,
@@ -255,11 +228,28 @@ def build_status(gcs_prefix: str | None = None, data_root: Path | None = None) -
             "ai_best_holder": "Liao",
             "expert_baseline_hud": EXPERT_BASELINE_HUD,
         },
+        "control_plane": {
+            "bucket": cp.get("bucket"),
+            "roles": cp.get("roles"),
+        },
+        "queue": {
+            "pending": depth.get("pending", queue.get("pending", 0)),
+            "running": depth.get("running", queue.get("running", 0)),
+            "done": depth.get("done", queue.get("done", 0)),
+            "failed": depth.get("failed", queue.get("failed", 0)),
+            "total_active": queue.get("total_active", 0),
+            "errors": queue.get("errors") or [],
+        },
+        "fleet": {
+            "size": cp.get("fleet_size", 0),
+            "raw": cp.get("fleet") or {},
+        },
+        "backlog": cp.get("backlog") or {},
+        "leaderboard": board,
         "summary": {
             "runs_total": len(runs),
-            "runs_alive": alive_count,
+            "runs_alive": sum(1 for r in runs if r.get("alive")),
             "best_finish_hud": best_finish,
-            "best_split_100m_hud": best_split,
             "gap_to_human_wr": (
                 None if best_finish is None else best_finish - HUMAN_WR_HUD
             ),
@@ -268,15 +258,14 @@ def build_status(gcs_prefix: str | None = None, data_root: Path | None = None) -
             ),
             "progress_to_human_wr_pct": _progress_pct(best_finish, HUMAN_WR_HUD),
             "progress_to_ai_best_pct": _progress_pct(best_finish, AI_BEST_HUD),
+            "queue_pending": depth.get("pending", 0),
+            "queue_running": depth.get("running", 0),
+            "fleet_size": cp.get("fleet_size", 0),
         },
         "runs": runs,
-        "gcs_prefix": gcs_prefix,
     }
 
 
-# ---------------------------------------------------------------------------
-# HTML UI
-# ---------------------------------------------------------------------------
 DASHBOARD_HTML = """<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -301,64 +290,38 @@ DASHBOARD_HTML = """<!DOCTYPE html>
   }
   * { box-sizing: border-box; }
   body {
-    margin: 0;
-    min-height: 100vh;
-    font-family: var(--sans);
-    color: var(--text);
+    margin: 0; min-height: 100vh; font-family: var(--sans); color: var(--text);
     background:
       radial-gradient(1200px 600px at 10% -10%, #1a2838 0%, transparent 55%),
       radial-gradient(900px 500px at 90% 0%, #1a3028 0%, transparent 50%),
       linear-gradient(180deg, var(--bg0), #0a0d12 80%);
   }
-  header {
-    padding: 1.5rem 1.75rem 0.75rem;
-    border-bottom: 1px solid var(--line);
-  }
-  header h1 {
-    margin: 0;
-    font-size: 1.45rem;
-    font-weight: 650;
-    letter-spacing: 0.02em;
-  }
-  header .sub {
-    margin-top: 0.35rem;
-    color: var(--muted);
-    font-size: 0.9rem;
-  }
+  header { padding: 1.5rem 1.75rem 0.75rem; border-bottom: 1px solid var(--line); }
+  header h1 { margin: 0; font-size: 1.45rem; font-weight: 650; letter-spacing: 0.02em; }
+  header .sub { margin-top: 0.35rem; color: var(--muted); font-size: 0.9rem; }
   .note {
-    margin: 0.75rem 1.75rem;
-    padding: 0.65rem 0.9rem;
+    margin: 0.75rem 1.75rem; padding: 0.65rem 0.9rem;
     background: rgba(94, 179, 232, 0.08);
     border: 1px solid rgba(94, 179, 232, 0.25);
-    border-radius: 6px;
-    color: var(--human);
-    font-size: 0.85rem;
+    border-radius: 6px; color: var(--human); font-size: 0.85rem;
   }
-  .targets {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 0.75rem;
-    padding: 0.5rem 1.75rem 1rem;
+  .grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 0.75rem; padding: 0.5rem 1.75rem 1rem;
   }
   .card {
-    background: var(--bg1);
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    padding: 0.9rem 1rem;
+    background: var(--bg1); border: 1px solid var(--line);
+    border-radius: 8px; padding: 0.9rem 1rem;
   }
   .card .label {
-    color: var(--muted);
-    font-size: 0.75rem;
-    text-transform: uppercase;
+    color: var(--muted); font-size: 0.72rem; text-transform: uppercase;
     letter-spacing: 0.06em;
   }
   .card .value {
-    margin-top: 0.25rem;
-    font-family: var(--mono);
-    font-size: 1.35rem;
-    font-weight: 600;
+    margin-top: 0.25rem; font-family: var(--mono);
+    font-size: 1.25rem; font-weight: 600;
   }
-  .card .hint { color: var(--muted); font-size: 0.8rem; margin-top: 0.2rem; }
+  .card .hint { color: var(--muted); font-size: 0.78rem; margin-top: 0.2rem; }
   .progress-wrap { padding: 0 1.75rem 1rem; }
   .progress-row { margin-bottom: 0.65rem; }
   .progress-row .meta {
@@ -376,57 +339,44 @@ DASHBOARD_HTML = """<!DOCTYPE html>
   }
   .bar.ai > span { background: linear-gradient(90deg, var(--ai), #f0c48a); }
   .section-title {
-    padding: 0.5rem 1.75rem;
-    font-size: 0.85rem;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
+    padding: 0.5rem 1.75rem; font-size: 0.85rem; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.08em;
   }
-  .table-wrap {
-    padding: 0 1.75rem 2rem;
-    overflow-x: auto;
+  .cols {
+    display: grid; grid-template-columns: 1fr 1.4fr; gap: 1rem;
+    padding: 0 1.75rem 1rem;
   }
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.85rem;
-    font-family: var(--mono);
-  }
+  @media (max-width: 900px) { .cols { grid-template-columns: 1fr; } }
+  .table-wrap { padding: 0 1.75rem 1.25rem; overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; font-family: var(--mono); }
   th, td {
-    text-align: left;
-    padding: 0.55rem 0.6rem;
-    border-bottom: 1px solid var(--line);
-    white-space: nowrap;
+    text-align: left; padding: 0.5rem 0.55rem;
+    border-bottom: 1px solid var(--line); white-space: nowrap;
   }
   th { color: var(--muted); font-weight: 500; font-family: var(--sans); }
   tr:hover td { background: rgba(255,255,255,0.02); }
+  tr.ref td { color: var(--muted); }
   .pill {
-    display: inline-block;
-    padding: 0.1rem 0.45rem;
-    border-radius: 4px;
-    font-size: 0.75rem;
-    border: 1px solid var(--line);
+    display: inline-block; padding: 0.1rem 0.45rem; border-radius: 4px;
+    font-size: 0.75rem; border: 1px solid var(--line);
   }
   .pill.yes { color: var(--accent); border-color: rgba(61,190,140,0.4); background: rgba(61,190,140,0.1); }
   .pill.no { color: var(--muted); }
   .pill.gcp { color: var(--ai); border-color: rgba(224,163,92,0.4); }
   .pill.local { color: var(--human); border-color: rgba(94,179,232,0.4); }
-  footer {
-    padding: 0.75rem 1.75rem 1.5rem;
-    color: var(--muted);
-    font-size: 0.78rem;
-  }
+  .pill.ref { color: var(--muted); }
+  footer { padding: 0.75rem 1.75rem 1.5rem; color: var(--muted); font-size: 0.78rem; }
   .err { color: var(--danger); }
 </style>
 </head>
 <body>
   <header>
     <h1>QWOP WR Chase</h1>
-    <div class="sub">Live training progress — local TensorBoard + optional GCS farm heartbeats</div>
+    <div class="sub">Read-only control-plane view — local TB + GCS queue / fleet / heartbeats</div>
   </header>
-  <div class="note" id="note">Times are HUD seconds (not W&amp;B protocol time).</div>
+  <div class="note" id="note">Times are HUD seconds (not W&amp;B protocol time). Dashboard is read-only.</div>
 
-  <div class="targets">
+  <div class="grid">
     <div class="card">
       <div class="label">Human WR</div>
       <div class="value" style="color:var(--human)">45.530s</div>
@@ -448,9 +398,14 @@ DASHBOARD_HTML = """<!DOCTYPE html>
       <div class="hint" id="best-gap">gap to WR —</div>
     </div>
     <div class="card">
-      <div class="label">Runs</div>
-      <div class="value" id="run-counts">0</div>
-      <div class="hint" id="updated">updated —</div>
+      <div class="label">Queue</div>
+      <div class="value" id="queue-depth">0 / 0</div>
+      <div class="hint" id="queue-detail">pending / running</div>
+    </div>
+    <div class="card">
+      <div class="label">Fleet size</div>
+      <div class="value" id="fleet-size">0</div>
+      <div class="hint" id="run-counts">0 alive runs</div>
     </div>
   </div>
 
@@ -465,32 +420,36 @@ DASHBOARD_HTML = """<!DOCTYPE html>
     </div>
   </div>
 
-  <div class="section-title">Runs / instances</div>
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr>
-          <th>run_id</th>
-          <th>alive</th>
-          <th>source</th>
-          <th>steps</th>
-          <th>success</th>
-          <th>ep_rew</th>
-          <th>best HUD</th>
-          <th>last HUD</th>
-          <th>split 100m</th>
-          <th>fps</th>
-        </tr>
-      </thead>
-      <tbody id="rows">
-        <tr><td colspan="10" style="color:var(--muted)">Loading…</td></tr>
-      </tbody>
-    </table>
+  <div class="cols">
+    <div>
+      <div class="section-title">Leaderboard (HUD)</div>
+      <div class="table-wrap" style="padding-left:0;padding-right:0">
+        <table>
+          <thead><tr><th>#</th><th>entry</th><th>HUD s</th><th>vs WR</th></tr></thead>
+          <tbody id="leaderboard"><tr><td colspan="4" style="color:var(--muted)">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+    <div>
+      <div class="section-title">Live runs</div>
+      <div class="table-wrap" style="padding-left:0;padding-right:0">
+        <table>
+          <thead>
+            <tr>
+              <th>run_id</th><th>alive</th><th>src</th><th>steps</th>
+              <th>success</th><th>best</th><th>last</th><th>split</th><th>fps</th>
+            </tr>
+          </thead>
+          <tbody id="rows"><tr><td colspan="9" style="color:var(--muted)">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
   </div>
+
   <footer>
     Auto-refresh every """ + str(REFRESH_MS // 1000) + """s ·
-    <code>GET /api/status</code> ·
-    HUD clock = score_time (1/30s per update), not protocol time
+    <code>GET /api/status</code> · read-only ·
+    orchestrator = Grok Bot · agents = code · spot VMs = train
   </footer>
 <script>
 function fmt(v, d=2) {
@@ -514,9 +473,15 @@ async function refresh() {
     document.getElementById("best-gap").textContent =
       gap == null ? "gap to WR —" :
       (gap <= 0 ? "AT OR UNDER WR" : ("+" + fmt(gap, 3) + "s vs WR"));
+
+    const q = data.queue || {};
+    document.getElementById("queue-depth").textContent =
+      (q.pending || 0) + " / " + (q.running || 0);
+    document.getElementById("queue-detail").textContent =
+      "pending / running · done " + (q.done || 0) + " · failed " + (q.failed || 0);
+    document.getElementById("fleet-size").textContent = String((data.fleet && data.fleet.size) || 0);
     document.getElementById("run-counts").textContent =
-      (s.runs_alive || 0) + " alive / " + (s.runs_total || 0);
-    document.getElementById("updated").textContent = "updated " + (data.updated_at || "—");
+      (s.runs_alive || 0) + " alive / " + (s.runs_total || 0) + " runs · " + (data.updated_at || "");
 
     const pa = s.progress_to_ai_best_pct;
     const pw = s.progress_to_human_wr_pct;
@@ -525,10 +490,32 @@ async function refresh() {
     document.getElementById("bar-ai").style.width = (pa || 0) + "%";
     document.getElementById("bar-wr").style.width = (pw || 0) + "%";
 
+    const WR = (data.targets && data.targets.human_wr_hud) || 45.53;
+    const lbBody = document.getElementById("leaderboard");
+    const lb = data.leaderboard || {};
+    const refs = lb.references || [];
+    const entries = lb.entries || [];
+    const lbRows = refs.concat(entries);
+    if (!lbRows.length) {
+      lbBody.innerHTML = '<tr><td colspan="4" style="color:var(--muted)">No leaderboard yet</td></tr>';
+    } else {
+      lbBody.innerHTML = lbRows.map(e => {
+        const isRef = e.source === "ref";
+        const hud = e.best_hud_time;
+        const vs = (hud != null) ? (hud - WR) : null;
+        const vsTxt = vs == null ? "—" : (vs <= 0 ? fmt(vs, 3) : ("+" + fmt(vs, 3)));
+        return '<tr class="' + (isRef ? "ref" : "") + '">' +
+          "<td>" + (e.rank != null ? e.rank : "—") + "</td>" +
+          "<td>" + (e.label || "?") + "</td>" +
+          "<td>" + fmt(hud, 3) + "</td>" +
+          "<td>" + vsTxt + "</td></tr>";
+      }).join("");
+    }
+
     const tbody = document.getElementById("rows");
     const runs = data.runs || [];
     if (!runs.length) {
-      tbody.innerHTML = '<tr><td colspan="10" style="color:var(--muted)">No runs found. Train locally or pass --gcs-prefix for farm heartbeats.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="9" style="color:var(--muted)">No live runs. Train locally or connect GCS.</td></tr>';
       return;
     }
     runs.sort((a,b) => (b.alive|0) - (a.alive|0) || String(a.run_id).localeCompare(String(b.run_id)));
@@ -540,23 +527,14 @@ async function refresh() {
       const best = r.best_hud_time != null ? r.best_hud_time : r.best_split_100m_time;
       const last = r.last_hud_time != null ? r.last_hud_time : r.time;
       const split = r.split_100m_time != null ? r.split_100m_time : r.best_split_100m_time;
-      const rew = r.ep_rew_mean != null ? r.ep_rew_mean : r.ep_rew;
-      return '<tr>' +
-        '<td>' + (r.run_id || "?") + err + '</td>' +
-        '<td>' + alive + '</td>' +
-        '<td>' + srcPill + '</td>' +
-        '<td>' + fmt(r.steps, 0) + '</td>' +
-        '<td>' + fmt(r.success_rate, 3) + '</td>' +
-        '<td>' + fmt(rew, 2) + '</td>' +
-        '<td>' + fmt(best, 2) + '</td>' +
-        '<td>' + fmt(last, 2) + '</td>' +
-        '<td>' + fmt(split, 2) + '</td>' +
-        '<td>' + fmt(r.fps, 1) + '</td>' +
-        '</tr>';
+      return "<tr><td>" + (r.run_id || "?") + err + "</td><td>" + alive + "</td><td>" + srcPill +
+        "</td><td>" + fmt(r.steps, 0) + "</td><td>" + fmt(r.success_rate, 3) +
+        "</td><td>" + fmt(best, 2) + "</td><td>" + fmt(last, 2) +
+        "</td><td>" + fmt(split, 2) + "</td><td>" + fmt(r.fps, 1) + "</td></tr>";
     }).join("");
   } catch (e) {
     document.getElementById("rows").innerHTML =
-      '<tr><td colspan="10" class="err">Failed to load /api/status: ' + e + '</td></tr>';
+      '<tr><td colspan="9" class="err">Failed to load /api/status: ' + e + "</td></tr>";
   }
 }
 refresh();
@@ -568,8 +546,10 @@ setInterval(refresh, """ + str(REFRESH_MS) + """);
 
 
 class DashboardHandler(BaseHTTPRequestHandler):
-    gcs_prefix: str | None = None
+    gcs_bucket: str | None = wr_gcs.DEFAULT_BUCKET
     data_root: Path | None = None
+    fixture_dir: Path | None = None
+    skip_gcs: bool = False
 
     def log_message(self, fmt: str, *args) -> None:
         sys.stderr.write("[%s] %s\n" % (self.log_date_time_string(), fmt % args))
@@ -587,14 +567,15 @@ class DashboardHandler(BaseHTTPRequestHandler):
         path = parsed.path.rstrip("/") or "/"
 
         if path == "/":
-            body = DASHBOARD_HTML.encode("utf-8")
-            self._send(200, body, "text/html; charset=utf-8")
+            self._send(200, DASHBOARD_HTML.encode("utf-8"), "text/html; charset=utf-8")
             return
 
         if path == "/api/status":
             status = build_status(
-                gcs_prefix=self.gcs_prefix,
+                gcs_bucket=self.gcs_bucket,
                 data_root=self.data_root,
+                fixture_dir=self.fixture_dir,
+                skip_gcs=self.skip_gcs,
             )
             body = json.dumps(status, indent=2, default=str).encode("utf-8")
             self._send(200, body, "application/json; charset=utf-8")
@@ -605,50 +586,78 @@ class DashboardHandler(BaseHTTPRequestHandler):
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Live QWOP WR progress dashboard (local TB + optional GCS)."
+        description="Read-only QWOP WR dashboard (local TB + GCS control plane)."
     )
-    parser.add_argument("--host", default="127.0.0.1", help="Bind host (default 127.0.0.1)")
-    parser.add_argument("--port", type=int, default=8787, help="Bind port (default 8787)")
+    parser.add_argument("--host", default="127.0.0.1")
+    parser.add_argument("--port", type=int, default=8787)
+    parser.add_argument(
+        "--gcs-bucket",
+        default=wr_gcs.DEFAULT_BUCKET,
+        help="Control-plane bucket (default gs://qwop-wr-training)",
+    )
     parser.add_argument(
         "--gcs-prefix",
         default=None,
-        help="Optional gs://bucket/prefix for heartbeat JSON "
-        "(e.g. gs://qwop-wr-training/metrics/)",
+        help=argparse.SUPPRESS,  # back-compat alias → bucket root
     )
     parser.add_argument(
-        "--data-root",
+        "--fixture-dir",
         default=None,
-        help="Override data/ root for local TensorBoard scan",
+        help="Local directory mirroring bucket layout (skips live GCS)",
     )
     parser.add_argument(
-        "--dump-status",
+        "--local-only",
         action="store_true",
-        help="Print /api/status JSON to stdout and exit (no server)",
+        help="Do not read GCS (local TensorBoard only)",
     )
+    parser.add_argument("--data-root", default=None)
+    parser.add_argument("--dump-status", action="store_true")
     args = parser.parse_args(argv)
 
     data_root = Path(args.data_root) if args.data_root else None
     if data_root and not data_root.is_absolute():
         data_root = ROOT / data_root
 
+    fixture_dir = Path(args.fixture_dir) if args.fixture_dir else None
+    if fixture_dir and not fixture_dir.is_absolute():
+        fixture_dir = ROOT / fixture_dir
+
+    bucket = args.gcs_bucket
+    if args.gcs_prefix and args.gcs_prefix.startswith("gs://"):
+        # Accept old flag: strip /metrics suffix to bucket root when possible
+        b = args.gcs_prefix.rstrip("/")
+        if b.endswith("/metrics"):
+            b = b[: -len("/metrics")]
+        bucket = b
+
     if args.dump_status:
-        status = build_status(gcs_prefix=args.gcs_prefix, data_root=data_root)
+        status = build_status(
+            gcs_bucket=bucket,
+            data_root=data_root,
+            fixture_dir=fixture_dir,
+            skip_gcs=args.local_only,
+        )
         json.dump(status, sys.stdout, indent=2, default=str)
         sys.stdout.write("\n")
         return 0
 
-    DashboardHandler.gcs_prefix = args.gcs_prefix
+    DashboardHandler.gcs_bucket = None if args.local_only else bucket
     DashboardHandler.data_root = data_root
+    DashboardHandler.fixture_dir = fixture_dir
+    DashboardHandler.skip_gcs = args.local_only
 
     server = ThreadingHTTPServer((args.host, args.port), DashboardHandler)
     print(
-        "QWOP WR dashboard on http://%s:%d/  (API: /api/status)"
+        "QWOP WR dashboard on http://%s:%d/  (read-only API: /api/status)"
         % (args.host, args.port),
         flush=True,
     )
-    if args.gcs_prefix:
-        print("GCS prefix: %s" % args.gcs_prefix, flush=True)
-    print("Times are HUD seconds (not W&B protocol time).", flush=True)
+    if fixture_dir:
+        print("Fixture dir: %s" % fixture_dir, flush=True)
+    elif args.local_only:
+        print("Local TensorBoard only (GCS disabled)", flush=True)
+    else:
+        print("GCS bucket: %s" % bucket, flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

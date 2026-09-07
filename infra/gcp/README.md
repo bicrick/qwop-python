@@ -1,46 +1,49 @@
 # GCP WR Training Farm (scaffold)
 
-Scaffolding for spot / preemptible QWOP WR training workers that report
-heartbeat metrics to GCS. **No secrets belong in this repo** — use gcloud
-auth, Workload Identity, or Secret Manager outside git.
+Control-plane bucket: **`gs://qwop-wr-training`**. Full layout + roles:
+[`CONTROL_PLANE.md`](./CONTROL_PLANE.md).
+
+**Architecture lock-in**
+
+| Actor | Role |
+|-------|------|
+| Grok Bot (~15m) | Orchestrator (enqueue, reconcile spot fleet, kill collapses) |
+| Cursor Cloud Agents | Code only |
+| Spot VMs | Training only |
+| Dashboard | Read-only |
+
+This PR ships **schemas, fixtures, worker startup, and bucket init** — not live
+VM creation as part of agent work.
 
 ## Prerequisites
 
-1. A GCP project (example below uses `qwop-wr` — replace with yours).
-2. `gcloud` CLI authenticated (`gcloud auth login` / application-default).
+1. GCP project (examples use `qwop-wr` — replace).
+2. `gcloud` authenticated (`gcloud auth login` / ADC).
 3. Billing enabled.
 
 ## One-time setup
 
 ```bash
-export PROJECT_ID=qwop-wr          # change me
+export PROJECT_ID=qwop-wr
 export REGION=us-central1
 export ZONE=us-central1-a
 gcloud config set project "$PROJECT_ID"
 
-# APIs
 gcloud services enable \
   compute.googleapis.com \
   storage.googleapis.com \
   iam.googleapis.com \
   logging.googleapis.com
 
-# Bucket for code tarballs + metrics heartbeats
-gcloud storage buckets create "gs://${PROJECT_ID}-training" \
-  --location="$REGION" \
-  --uniform-bucket-level-access || true
-# Canonical name used by scripts (create or alias):
 gcloud storage buckets create gs://qwop-wr-training \
   --location="$REGION" \
   --uniform-bucket-level-access || true
 
-# Service account for workers
 gcloud iam service-accounts create qwop-wr-trainer \
   --display-name="QWOP WR trainer" || true
 
 SA="qwop-wr-trainer@${PROJECT_ID}.iam.gserviceaccount.com"
 
-# Minimal roles: read/write training artifacts + write metrics + logging
 gcloud projects add-iam-policy-binding "$PROJECT_ID" \
   --member="serviceAccount:${SA}" \
   --role="roles/storage.objectAdmin"
@@ -51,73 +54,67 @@ gcloud projects add-iam-policy-binding "$PROJECT_ID" \
   --member="serviceAccount:${SA}" \
   --role="roles/monitoring.metricWriter"
 
-# Allow the SA to use itself on GCE (needed for custom SA on VMs)
 gcloud iam service-accounts add-iam-policy-binding "$SA" \
-  --member="serviceAccount:${SA}" \
+  --member="user:YOUR_ACCOUNT" \
   --role="roles/iam.serviceAccountUser"
 ```
 
-## Upload code (optional tarball path)
-
-Workers can clone from git **or** fetch a tarball from GCS:
+Seed prefixes + empty state (no VMs):
 
 ```bash
-# From repo root (exclude .git / large artifacts)
+chmod +x infra/gcp/init_bucket.sh
+./infra/gcp/init_bucket.sh
+```
+
+## Upload code tarball (optional)
+
+```bash
 tar -czf /tmp/qwop-python.tgz \
   --exclude=.git --exclude=data --exclude='*.egg-info' .
 gcloud storage cp /tmp/qwop-python.tgz gs://qwop-wr-training/code/qwop-python.tgz
+gcloud storage cp infra/gcp/startup.sh gs://qwop-wr-training/code/startup.sh
 ```
 
-Or set instance metadata `git_url` / `git_ref` and let `startup.sh` clone.
+## Spot workers (orchestrator / humans — not Cursor agent duty)
 
-## Launch spot workers
+Example helper only:
 
 ```bash
 cd infra/gcp
-chmod +x create_workers.sh startup.sh
-./create_workers.sh --count 2 --config config/sweeps/scout_ppo_fps2.yml
+./create_workers.sh --dry-run --count 1 --config config/sweeps/scout_ppo_fps2.yml
+# Grok Bot owns live reconcile; pass --job-id matching queue/running/<id>.json
 ```
 
-See `create_workers.sh` for flags. Default machine: **spot** `n2d-standard-8`,
-label `qwop-wr=1`, service account
-`qwop-wr-trainer@qwop-wr.iam.gserviceaccount.com` (override with env vars).
+Default: spot `n2d-standard-8`, label `qwop-wr=1`, SA
+`qwop-wr-trainer@qwop-wr.iam.gserviceaccount.com`.
 
-## Heartbeats
-
-Every ~60s each worker writes:
+Workers write:
 
 ```text
-gs://qwop-wr-training/metrics/runs/<run_id>/heartbeat.json
+gs://qwop-wr-training/metrics/runs/<job_id>/heartbeat.json
+gs://qwop-wr-training/artifacts/runs/<job_id>/
 ```
 
-Schema: [`metrics_schema.md`](./metrics_schema.md).
-
-Point the local dashboard at the prefix:
+## Dashboard (read-only)
 
 ```bash
-python scripts/wr_dashboard.py --port 8787 \
-  --gcs-prefix gs://qwop-wr-training/metrics/
+# Local fixtures (no GCP credentials)
+python scripts/wr_dashboard.py --port 8787 --fixture-dir infra/gcp/fixtures
+
+# Live bucket
+python scripts/wr_dashboard.py --port 8787 --gcs-bucket gs://qwop-wr-training
+
+# Local TensorBoard only
+python scripts/wr_dashboard.py --port 8787 --local-only
 ```
 
-Requires `gsutil` or `pip install google-cloud-storage` and credentials that
-can list/read the bucket.
+## Docs
 
-## Preemption
-
-Spot VMs can stop at any time. `startup.sh` sets status `running` while
-training; on clean exit it writes `finished`. Preempted instances simply
-stop updating — the dashboard marks them dead after ~3 minutes without a
-fresh `updated_at`.
-
-## Cost notes
-
-- Prefer spot / preemptible for scouts.
-- Cap disk size; store checkpoints in GCS, not large local disks.
-- Tear down idle workers: `gcloud compute instances list --filter='labels.qwop-wr=1'`
+- [`CONTROL_PLANE.md`](./CONTROL_PLANE.md) — layout + writers
+- [`metrics_schema.md`](./metrics_schema.md) — heartbeat fields
+- [`schemas/`](./schemas/) — JSON schemas
+- [`fixtures/`](./fixtures/) — sample control-plane mirror for local UI
 
 ## Security
 
-- Do **not** commit JSON keys or `.env` files.
-- Prefer the worker SA + metadata; avoid embedding tokens in startup scripts.
-- Bucket IAM should grant the trainer SA objectAdmin only on
-  `gs://qwop-wr-training` if you tighten from project-level roles.
+No secrets in git. Prefer worker SA + metadata; never embed JSON keys.

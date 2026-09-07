@@ -102,11 +102,13 @@ tensorboard --logdir data/
 Live WR chase dashboard (local TB + optional GCS farm heartbeats):
 
 ```bash
-python scripts/wr_dashboard.py --port 8787
-# optional: --gcs-prefix gs://qwop-wr-training/metrics/
+python scripts/wr_dashboard.py --port 8787 --fixture-dir infra/gcp/fixtures
+# live:  --gcs-bucket gs://qwop-wr-training
+# local: --local-only
 ```
 
-See [`doc/WR_DASHBOARD.md`](doc/WR_DASHBOARD.md) and [`infra/gcp/`](infra/gcp/) for the spot-worker farm scaffold.
+See [`doc/WR_DASHBOARD.md`](doc/WR_DASHBOARD.md) and [`infra/gcp/CONTROL_PLANE.md`](infra/gcp/CONTROL_PLANE.md).
+Grok Bot orchestrates the farm; this dashboard is read-only.
 
 Configure `model_file` in `config/spectate.yml` and watch a trained agent:
 

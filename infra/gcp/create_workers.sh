@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Example: create spot n2d-standard-8 workers for QWOP WR training.
+# EXAMPLE helper to create spot n2d-standard-8 trainers.
+#
+# Live fleet reconcile belongs to Grok Bot. Cursor Cloud Agents should not
+# treat this as something to run against production in a PR. Prefer --dry-run.
 #
 # Usage:
-#   ./create_workers.sh --count 2 --config config/sweeps/scout_ppo_fps2.yml
-#
-# Env overrides:
-#   PROJECT_ID, ZONE, MACHINE_TYPE, SA_EMAIL, IMAGE_FAMILY, IMAGE_PROJECT,
-#   METRICS_BUCKET, GIT_URL, GIT_REF, CODE_TARBALL, MAX_TIMESTEPS
+#   ./create_workers.sh --dry-run --count 1 --job-id job-scout-001 \
+#       --config config/sweeps/scout_ppo_fps2.yml
 
 set -euo pipefail
 
@@ -23,6 +23,7 @@ GIT_URL="${GIT_URL:-}"
 GIT_REF="${GIT_REF:-main}"
 CODE_TARBALL="${CODE_TARBALL:-gs://qwop-wr-training/code/qwop-python.tgz}"
 MAX_TIMESTEPS="${MAX_TIMESTEPS:-}"
+JOB_ID="${JOB_ID:-}"
 COUNT=1
 TRAIN_CONFIG="config/train_ppo.yml"
 NAME_PREFIX="qwop-wr"
@@ -32,6 +33,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --count) COUNT="$2"; shift 2 ;;
     --config) TRAIN_CONFIG="$2"; shift 2 ;;
+    --job-id) JOB_ID="$2"; shift 2 ;;
     --zone) ZONE="$2"; shift 2 ;;
     --project) PROJECT_ID="$2"; shift 2 ;;
     --git-url) GIT_URL="$2"; shift 2 ;;
@@ -40,7 +42,7 @@ while [[ $# -gt 0 ]]; do
     --prefix) NAME_PREFIX="$2"; shift 2 ;;
     --dry-run) DRY_RUN=1; shift ;;
     -h|--help)
-      sed -n '2,12p' "$0"
+      sed -n '2,14p' "$0"
       exit 0
       ;;
     *)
@@ -56,21 +58,23 @@ if [[ ! -f "$STARTUP" ]]; then
   exit 1
 fi
 
+echo "NOTE: Grok Bot owns live orchestration. This script is an example helper."
 echo "Project:     $PROJECT_ID"
 echo "Zone:        $ZONE"
 echo "Machine:     $MACHINE_TYPE (SPOT)"
 echo "SA:          $SA_EMAIL"
 echo "Config:      $TRAIN_CONFIG"
+echo "Bucket:      $METRICS_BUCKET"
 echo "Count:       $COUNT"
 echo "Labels:      qwop-wr=1"
 
 for i in $(seq 1 "$COUNT"); do
   TS="$(date -u +%Y%m%d%H%M%S)"
   NAME="${NAME_PREFIX}-${TS}-${i}"
-  RUN_ID="${NAME}"
+  THIS_JOB="${JOB_ID:-$NAME}"
 
   METADATA=(
-    "run-id=${RUN_ID}"
+    "job-id=${THIS_JOB}"
     "train-config=${TRAIN_CONFIG}"
     "metrics-bucket=${METRICS_BUCKET}"
     "code-tarball=${CODE_TARBALL}"
@@ -107,7 +111,7 @@ for i in $(seq 1 "$COUNT"); do
   )
 
   echo "----"
-  echo "Creating $NAME (run_id=$RUN_ID)"
+  echo "Creating $NAME (job_id=$THIS_JOB)"
   if [[ "$DRY_RUN" -eq 1 ]]; then
     printf ' %q' "${CMD[@]}"
     echo
@@ -116,5 +120,6 @@ for i in $(seq 1 "$COUNT"); do
   fi
 done
 
-echo "Done. Heartbeats → ${METRICS_BUCKET}/metrics/runs/<run_id>/heartbeat.json"
-echo "Dashboard: python scripts/wr_dashboard.py --port 8787 --gcs-prefix ${METRICS_BUCKET}/metrics/"
+echo "Heartbeats → ${METRICS_BUCKET}/metrics/runs/<job_id>/heartbeat.json"
+echo "Artifacts  → ${METRICS_BUCKET}/artifacts/runs/<job_id>/"
+echo "Dashboard: python scripts/wr_dashboard.py --gcs-bucket ${METRICS_BUCKET}"

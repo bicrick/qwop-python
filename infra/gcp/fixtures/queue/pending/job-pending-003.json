@@ -1,0 +1,9 @@
+{
+  "job_id": "job-scout-001",
+  "config": "config/sweeps/scout_ppo_fps2.yml",
+  "priority": 10,
+  "created_at": "2026-09-07T20:00:00Z",
+  "enqueued_by": "grok-bot",
+  "max_timesteps": 200000,
+  "labels": {"phase": "scout", "algo": "ppo"}
+}

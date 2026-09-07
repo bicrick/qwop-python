@@ -1,0 +1,22 @@
+{
+  "updated_at": "2026-09-07T21:00:00Z",
+  "updated_by": "grok-bot",
+  "desired": 2,
+  "size": 2,
+  "provisioning_model": "SPOT",
+  "machine_type": "n2d-standard-8",
+  "instances": [
+    {
+      "name": "qwop-wr-20260907-1",
+      "zone": "us-central1-a",
+      "job_id": "job-scout-001",
+      "status": "RUNNING"
+    },
+    {
+      "name": "qwop-wr-20260907-2",
+      "zone": "us-central1-a",
+      "job_id": "job-scout-002",
+      "status": "RUNNING"
+    }
+  ]
+}

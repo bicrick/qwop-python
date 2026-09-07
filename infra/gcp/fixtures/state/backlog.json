@@ -1,0 +1,9 @@
+{
+  "updated_at": "2026-09-07T21:00:00Z",
+  "updated_by": "grok-bot",
+  "ideas": [
+    {"id": "phase-a-anneal", "priority": "high", "notes": "anneal scrape penalties into Phase B"},
+    {"id": "fps-sweep", "priority": "med", "notes": "fps 1/2/4 scouts on spot"}
+  ],
+  "blocked": []
+}

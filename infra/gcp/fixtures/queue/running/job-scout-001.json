@@ -1,0 +1,11 @@
+{
+  "job_id": "job-scout-001",
+  "config": "config/sweeps/scout_ppo_fps2.yml",
+  "priority": 10,
+  "created_at": "2026-09-07T19:00:00Z",
+  "started_at": "2026-09-07T19:05:00Z",
+  "claimed_by": "qwop-wr-20260907-1",
+  "zone": "us-central1-a",
+  "enqueued_by": "grok-bot",
+  "max_timesteps": 200000
+}

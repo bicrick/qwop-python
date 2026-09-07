@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://qwop-wr.local/schemas/leaderboard.json",
+  "title": "QWOP WR leaderboard (HUD seconds)",
+  "type": "object",
+  "required": ["updated_at", "entries"],
+  "properties": {
+    "updated_at": { "type": "string", "format": "date-time" },
+    "updated_by": { "type": "string" },
+    "unit": { "type": "string", "const": "HUD seconds" },
+    "targets": {
+      "type": "object",
+      "properties": {
+        "human_wr_hud": { "type": "number" },
+        "ai_best_hud": { "type": "number" },
+        "expert_baseline_hud": { "type": "number" }
+      }
+    },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["best_hud_time"],
+        "properties": {
+          "rank": { "type": "integer" },
+          "job_id": { "type": "string" },
+          "label": { "type": "string" },
+          "best_hud_time": { "type": "number", "description": "HUD seconds" },
+          "source": { "type": "string" },
+          "notes": { "type": "string" }
+        }
+      }
+    }
+  },
+  "additionalProperties": true
+}

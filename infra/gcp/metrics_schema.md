@@ -1,48 +1,48 @@
 # GCS heartbeat metrics schema
 
-Workers write a small JSON document so the WR dashboard can show live farm
-status without scraping TensorBoard from every VM.
+Workers (spot VMs) overwrite a small JSON document so the read-only dashboard
+and Grok Bot can see live farm status without scraping every VM's TensorBoard.
 
 ## Object path
 
 ```text
-gs://qwop-wr-training/metrics/runs/<run_id>/heartbeat.json
+gs://qwop-wr-training/metrics/runs/<job_id>/heartbeat.json
 ```
 
-Optional siblings (future): `summary.json`, `events.jsonl`. The dashboard
-MVP only requires `heartbeat.json` (or any `*.json` under the metrics prefix
-that parses as an object).
+`<job_id>` matches the queue object stem:
+`queue/{pending,running,done,failed}/<job_id>.json`.
 
 ## Cadence
 
-Write / overwrite about every **60 seconds** while training. Include
-`updated_at` in UTC ISO-8601. The dashboard treats a run as dead if
-`status` is not active **or** `updated_at` is older than ~3 minutes.
+Overwrite about every **60 seconds** while training. Include UTC ISO-8601
+`updated_at`. Dashboard treats a run as dead if `status` is inactive **or**
+`updated_at` is older than ~3 minutes.
 
-## Schema (JSON object)
+## Schema
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `run_id` | string | yes | Unique run id (matches local `--run-id` / out dir) |
+| `job_id` | string | yes | Same id as queue job |
+| `run_id` | string | no | Alias; dashboard accepts either |
 | `hostname` | string | yes | VM hostname |
-| `zone` | string | no | GCE zone (e.g. `us-central1-a`) |
+| `zone` | string | no | GCE zone |
 | `steps` | number | no | Latest training timestep |
-| `success_rate` | number | no | Latest `rollout/success_rate` or `user/is_success` |
-| `ep_rew` / `ep_rew_mean` | number | no | Latest episode reward mean |
-| `best_hud_time` | number | no | Best finish time seen (**HUD seconds**) |
+| `success_rate` | number | no | `rollout/success_rate` / `user/is_success` |
+| `ep_rew` / `ep_rew_mean` | number | no | Episode reward mean |
+| `best_hud_time` | number | no | Best finish (**HUD seconds**) |
 | `last_hud_time` | number | no | Latest `user/time` (**HUD seconds**) |
-| `split_100m_time` | number | no | Latest `user/split_100m_time` if logged |
-| `fps` | number | no | Env / training FPS if known |
+| `split_100m_time` | number | no | Latest `user/split_100m_time` |
+| `fps` | number | no | Env / training FPS |
 | `status` | string | yes | `starting` \| `running` \| `finished` \| `failed` \| `preempted` |
-| `updated_at` | string | yes | UTC timestamp, e.g. `2026-09-07T22:00:00Z` |
-| `config` | string | no | Training config path |
-| `source` | string | no | Should be `gcp` (dashboard also sets this) |
+| `updated_at` | string | yes | UTC, e.g. `2026-09-07T22:00:00Z` |
+| `config` | string | no | Train config path |
+| `source` | string | no | `gcp` |
 
 ### Example
 
 ```json
 {
-  "run_id": "scout-ppo-fps2-a1b2",
+  "job_id": "job-scout-001",
   "hostname": "qwop-wr-1",
   "zone": "us-central1-a",
   "steps": 120000,
@@ -61,21 +61,20 @@ Write / overwrite about every **60 seconds** while training. Include
 
 ## Time semantics
 
-**All times are HUD seconds** (QWOP on-screen score clock / `score_time`),
-not W&B protocol time and not qwop-gym's compressed protocol clock
-(≈ HUD / 10). Human WR **45.530s** is HUD time.
+**HUD seconds** only (score clock / `score_time`). Not W&B protocol time.
+Human WR **45.530s** is HUD.
 
-## TensorBoard tag mapping (local + workers)
+## TensorBoard tag mapping (local dashboard)
 
-When scraping SB3 event files locally, the dashboard / `monitor_runs.py` look for:
-
-| Metric | Tags (first match / latest step) |
-|--------|-----------------------------------|
+| Metric | Tags |
+|--------|------|
 | success | `rollout/success_rate`, `user/is_success`, `eval/success_rate` |
 | ep reward | `rollout/ep_rew_mean`, `train/ep_rew_mean` |
 | HUD time | `user/time` |
 | 100m split | `user/split_100m_time` |
 | fps | `time/fps`, `rollout/fps` |
 
-Workers should mirror the same numbers into the heartbeat when possible
-(see `startup.sh` helper that tails TB or reads a side-car metrics file).
+## Related control-plane objects
+
+See [`CONTROL_PLANE.md`](./CONTROL_PLANE.md) for queue / state / artifacts.
+Artifacts land at `gs://qwop-wr-training/artifacts/runs/<job_id>/`.
