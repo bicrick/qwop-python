@@ -205,7 +205,7 @@ action:
   spectate          watch trained model play
   race              race two models side by side
   benchmark         measure env steps/sec
-  evaluate          headless physics-time eval of a saved model
+  evaluate          headless HUD-time eval of a saved model (browser scoreTime)
   train_ppo         train using PPO
   train_ppo_5       train using PPO5 (success-only episode filtering)
   train_dqn         train using DQN

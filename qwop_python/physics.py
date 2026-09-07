@@ -42,13 +42,17 @@ class PhysicsWorld:
     - 11 revolute joints connecting body parts
     """
     
-    def __init__(self, verbose=True):
+    def __init__(self, verbose=True, hurdles_enabled=None):
         """Initialize physics world container.
         
         Args:
             verbose: If True, print initialization messages (default: True)
+            hurdles_enabled: Override data.HURDLES_ENABLED for this instance
         """
         self.verbose = verbose
+        if hurdles_enabled is None:
+            hurdles_enabled = HURDLES_ENABLED
+        self.hurdles_enabled = bool(hurdles_enabled)
         self.world = None
         self.bodies = {}  # Dict of body name -> b2Body
         self.joints = {}  # Dict of joint name -> b2RevoluteJoint
@@ -516,7 +520,7 @@ class PhysicsWorld:
         Creates:
         1. Box2D world with gravity
         2. Ground/track static body
-        3. Hurdle obstacle (if HURDLES_ENABLED)
+        3. Hurdle obstacle (if self.hurdles_enabled)
         4. All 12 body parts
         5. All 11 joints
         
@@ -526,7 +530,7 @@ class PhysicsWorld:
             print("Initializing QWOP physics world...")
         self.create_world()
         self.create_ground()
-        if HURDLES_ENABLED:
+        if self.hurdles_enabled:
             self.create_hurdle()
         self.create_bodies()
         self.create_joints()
@@ -534,7 +538,7 @@ class PhysicsWorld:
             print("✓ Physics world initialization complete")
             print(f"  Bodies: {len(self.bodies)}")
             print(f"  Joints: {len(self.joints)}")
-            if HURDLES_ENABLED:
+            if self.hurdles_enabled:
                 print(f"  Hurdles: Enabled")
     
     def reset(self):
@@ -567,7 +571,7 @@ class PhysicsWorld:
             self.world.DestroyBody(body)
         
         # 3. Destroy and recreate hurdle (if enabled)
-        if HURDLES_ENABLED:
+        if self.hurdles_enabled:
             if self.hurdle_joint is not None:
                 self.world.DestroyJoint(self.hurdle_joint)
                 self.hurdle_joint = None

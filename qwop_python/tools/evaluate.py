@@ -16,10 +16,10 @@
 """
 Headless evaluation of a saved SB3 model.
 
-Reports physics-clock metrics only:
-  - time: info['time'] = game.score_time (seconds at 0.04s/tick)
+Reports HUD-clock metrics (aligned with real HTML/JS QWOP):
+  - time: info['time'] = game.score_time (+1/30 per update; Box2D still steps 0.04)
   - distance: metres (torso x / 10)
-  - speed_mps: distance/time for the episode (honest m/s), plus rolling speed_mps
+  - speed_mps: distance/time for the episode (honest m/s on the HUD clock)
   - is_success / stuck / truncated
 
 Do not use info['avgspeed'] for WR claims — see doc/TRANSFER_AND_METRICS.md.
@@ -90,10 +90,10 @@ def evaluate(cfg: dict[str, Any]) -> dict[str, Any]:
                     env.render()
 
             distance = float(info.get("distance", 0.0))
-            physics_time = float(info.get("time", 0.0))
-            # Episode-mean speed from physics clock (honest claim metric).
+            hud_time = float(info.get("time", 0.0))
+            # Episode-mean speed from HUD clock (honest claim metric).
             speed_episode = (
-                distance / physics_time if physics_time > 0 else 0.0
+                distance / hud_time if hud_time > 0 else 0.0
             )
             rolling_speed = float(
                 info.get("speed_mps", info.get("avgspeed", 0.0))
@@ -104,15 +104,15 @@ def evaluate(cfg: dict[str, Any]) -> dict[str, Any]:
             beats_wr = (
                 is_success
                 and distance >= finish_distance_m
-                and physics_time > 0
-                and physics_time < human_wr_s
+                and hud_time > 0
+                and hud_time < human_wr_s
             )
 
             row = {
                 "episode": ep,
                 "seed": ep_seed,
                 "steps": steps,
-                "time": physics_time,
+                "time": hud_time,
                 "distance": distance,
                 "speed_mps": speed_episode,
                 "speed_mps_rolling": rolling_speed,
@@ -133,7 +133,7 @@ def evaluate(cfg: dict[str, Any]) -> dict[str, Any]:
             )
             print(
                 "ep=%03d  %s  time=%.3fs  dist=%.2fm  speed=%.3f m/s  steps=%d"
-                % (ep, status, physics_time, distance, speed_episode, steps)
+                % (ep, status, hud_time, distance, speed_episode, steps)
             )
     finally:
         env.close()
@@ -166,7 +166,7 @@ def evaluate(cfg: dict[str, Any]) -> dict[str, Any]:
         ),
     }
 
-    print("\n=== Eval summary (physics clock) ===")
+    print("\n=== Eval summary (HUD clock = browser scoreTime) ===")
     print("model: %s" % model_file)
     print(
         "episodes=%d  success_rate=%.1f%%  stuck=%d  trunc=%d"

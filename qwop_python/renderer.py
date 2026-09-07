@@ -23,7 +23,6 @@ from .data import (
     SCREEN_HEIGHT,
     OBS_PANEL_WIDTH,
     SAND_PIT_AT,
-    HURDLES_ENABLED,
     HURDLE_BASE_SIZE,
     HURDLE_TOP_SIZE
 )
@@ -488,8 +487,8 @@ class QWOPRenderer:
         Args:
             game: QWOPGame instance
         """
-        # Only draw if hurdles are enabled
-        if not HURDLES_ENABLED:
+        # Only draw if hurdles are enabled for this game instance
+        if not getattr(game, "hurdles_enabled", False):
             return
         
         # Draw hurdle base

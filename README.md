@@ -65,7 +65,7 @@ action:
   replay         replay recorded actions
   spectate       watch trained model play
   benchmark      measure env steps/sec
-  evaluate       headless physics-time eval of a saved model
+  evaluate       headless HUD-time eval of a saved model
   train_ppo      train using PPO
   train_dqn      train using DQN
   train_qrdqn    train using QRDQN
@@ -117,7 +117,7 @@ Benchmark env throughput (steps/sec):
 qwop-python benchmark
 ```
 
-Evaluate a saved model with physics-clock metrics (see `doc/TRANSFER_AND_METRICS.md`):
+Evaluate a saved model with HUD-clock metrics (see `doc/TRANSFER_AND_METRICS.md`):
 
 ```bash
 qwop-python -c config/eval_wr.yml evaluate

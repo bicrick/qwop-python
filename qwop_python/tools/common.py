@@ -45,6 +45,7 @@ ALLOWED_ENV_KWARGS = {
     "speed_rew_mult",
     "render_mode",
     "show_observation_panel",
+    "hurdles_enabled",
 }
 
 
