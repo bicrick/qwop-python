@@ -50,7 +50,9 @@ class QWOPGame:
         Args:
             seed: Optional seed for deterministic behavior (for RL compatibility)
             verbose: If True, print game events (default: True)
-            headless: If True, skip camera/speed tracking for faster training (default: False)
+            headless: If True, skip non-physics extras (speed audio buffer) for faster
+                training. Camera_x MUST still update — ground segment repositioning
+                depends on it. Skipping camera in headless stalls the track ~18m.
         """
         self.verbose = verbose
         self.headless = headless
@@ -161,8 +163,8 @@ class QWOPGame:
                 torque = HEAD_TORQUE_FACTOR * (head.angle + HEAD_TORQUE_OFFSET)
                 head.ApplyTorque(torque, True)
         
-        # Step 5: Speed tracking (rolling average for future audio)
-        # Skip in headless mode for performance
+        # Step 5: Speed tracking (rolling average for future audio / UI)
+        # Safe to skip in headless — not required for physics or ground scroll.
         if not self.headless:
             head = self.physics.get_body('head')
             if head is not None:
@@ -179,9 +181,11 @@ class QWOPGame:
             self.physics.step()
         
         # Step 9: Camera follow logic
-        # Skip in headless mode for performance
-        if not self.headless:
-            self._update_camera()
+        # ALWAYS update camera_x even when headless. _reposition_ground_segments()
+        # keys off camera_x; without it the track stops scrolling and the runner
+        # stalls around ~18m with no feet/track contact for further progress.
+        # camera_y is cheap and kept in sync for parity; no pygame blit/UI here.
+        self._update_camera()
         
         # Step 10: Score calculation (freeze when game ended to prevent shifting)
         if not self.game_state.jump_landed and not self.game_state.game_ended:
