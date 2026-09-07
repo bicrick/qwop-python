@@ -82,8 +82,14 @@ Example helper only:
 ```bash
 cd infra/gcp
 ./create_workers.sh --dry-run --count 1 --config config/sweeps/scout_ppo_fps2.yml
+# QRDQN scouts: *qrdqn* is matched before *dqn*; prefer an explicit action:
+./create_workers.sh --dry-run --config config/sweeps/scout_qrdqn.yml \
+  --train-action train_qrdqn
 # Grok Bot owns live reconcile; pass --job-id matching queue/running/<id>.json
 ```
+
+`startup.sh` reads metadata `train-action` when set; otherwise infers from the
+config basename (`*qrdqn*` before `*dqn*`, `*rppo*` before `*ppo*`).
 
 Default: spot `n2d-standard-8`, label `qwop-wr=1`, SA
 `qwop-wr-trainer@qwop-wr.iam.gserviceaccount.com`.

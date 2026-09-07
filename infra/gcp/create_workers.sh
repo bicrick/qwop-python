@@ -7,6 +7,8 @@
 # Usage:
 #   ./create_workers.sh --dry-run --count 1 --job-id job-scout-001 \
 #       --config config/sweeps/scout_ppo_fps2.yml
+#   ./create_workers.sh --dry-run --config config/sweeps/scout_qrdqn.yml \
+#       --train-action train_qrdqn
 
 set -euo pipefail
 
@@ -24,15 +26,41 @@ GIT_REF="${GIT_REF:-main}"
 CODE_TARBALL="${CODE_TARBALL:-gs://qwop-wr-training/code/qwop-python.tgz}"
 MAX_TIMESTEPS="${MAX_TIMESTEPS:-}"
 JOB_ID="${JOB_ID:-}"
+TRAIN_ACTION="${TRAIN_ACTION:-}"
 COUNT=1
 TRAIN_CONFIG="config/train_ppo.yml"
 NAME_PREFIX="qwop-wr"
 DRY_RUN=0
 
+# Mirror startup.sh inference so dry-run / logs show the resolved action.
+# *qrdqn* before *dqn*, *rppo* before *ppo*. Prefer --train-action when set.
+infer_train_action() {
+  local cfg="$1"
+  local override="${2:-}"
+  if [[ -n "$override" ]]; then
+    case "$override" in
+      train_*) echo "$override" ;;
+      *) echo "train_${override}" ;;
+    esac
+    return 0
+  fi
+  local base
+  base="$(basename "$cfg")"
+  case "$base" in
+    *qrdqn*) echo "train_qrdqn" ;;
+    *dqn*)   echo "train_dqn" ;;
+    *rppo*)  echo "train_rppo" ;;
+    *ppo*)   echo "train_ppo" ;;
+    *a2c*)   echo "train_a2c" ;;
+    *)       echo "train_ppo" ;;
+  esac
+}
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --count) COUNT="$2"; shift 2 ;;
     --config) TRAIN_CONFIG="$2"; shift 2 ;;
+    --train-action) TRAIN_ACTION="$2"; shift 2 ;;
     --job-id) JOB_ID="$2"; shift 2 ;;
     --zone) ZONE="$2"; shift 2 ;;
     --project) PROJECT_ID="$2"; shift 2 ;;
@@ -42,7 +70,7 @@ while [[ $# -gt 0 ]]; do
     --prefix) NAME_PREFIX="$2"; shift 2 ;;
     --dry-run) DRY_RUN=1; shift ;;
     -h|--help)
-      sed -n '2,14p' "$0"
+      sed -n '2,16p' "$0"
       exit 0
       ;;
     *)
@@ -51,6 +79,8 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+RESOLVED_ACTION="$(infer_train_action "$TRAIN_CONFIG" "$TRAIN_ACTION")"
 
 STARTUP="${SCRIPT_DIR}/startup.sh"
 if [[ ! -f "$STARTUP" ]]; then
@@ -64,6 +94,7 @@ echo "Zone:        $ZONE"
 echo "Machine:     $MACHINE_TYPE (SPOT)"
 echo "SA:          $SA_EMAIL"
 echo "Config:      $TRAIN_CONFIG"
+echo "Action:      $RESOLVED_ACTION${TRAIN_ACTION:+ (explicit)}"
 echo "Bucket:      $METRICS_BUCKET"
 echo "Count:       $COUNT"
 echo "Labels:      qwop-wr=1"
@@ -76,6 +107,7 @@ for i in $(seq 1 "$COUNT"); do
   METADATA=(
     "job-id=${THIS_JOB}"
     "train-config=${TRAIN_CONFIG}"
+    "train-action=${RESOLVED_ACTION}"
     "metrics-bucket=${METRICS_BUCKET}"
     "code-tarball=${CODE_TARBALL}"
     "git-ref=${GIT_REF}"

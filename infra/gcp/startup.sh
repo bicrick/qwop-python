@@ -11,6 +11,8 @@
 # Metadata:
 #   job-id          — required for canonical paths (falls back to hostname-ts)
 #   train-config    — repo-relative YAML (default config/train_ppo.yml)
+#   train-action    — optional explicit CLI action (train_qrdqn, train_ppo, …).
+#                     When set, skips filename inference. Prefer this for scouts.
 #   git-url / git-ref
 #   code-tarball    — default gs://qwop-wr-training/code/qwop-python.tgz
 #   metrics-bucket  — default gs://qwop-wr-training
@@ -39,6 +41,7 @@ if [[ -z "$JOB_ID" ]]; then
   JOB_ID="$(meta run-id)"
 fi
 TRAIN_CONFIG="$(meta train-config)"
+TRAIN_ACTION="$(meta train-action)"
 GIT_URL="$(meta git-url)"
 GIT_REF="$(meta git-ref)"
 CODE_TARBALL="$(meta code-tarball)"
@@ -53,6 +56,32 @@ METRICS_BUCKET="${METRICS_BUCKET:-gs://qwop-wr-training}"
 METRICS_BUCKET="${METRICS_BUCKET%/}"
 HEARTBEAT_SECS="${HEARTBEAT_SECS:-60}"
 CODE_TARBALL="${CODE_TARBALL:-${METRICS_BUCKET}/code/qwop-python.tgz}"
+
+# Infer qwop-python <action> from config path. Order matters: *qrdqn* MUST be
+# matched before *dqn* (and *rppo* before *ppo*), or scout_qrdqn_*.yml becomes
+# train_dqn. Prefer metadata train-action when set.
+infer_train_action() {
+  local cfg="$1"
+  local override="${2:-}"
+  if [[ -n "$override" ]]; then
+    # Accept bare names (qrdqn) or full actions (train_qrdqn)
+    case "$override" in
+      train_*) echo "$override" ;;
+      *) echo "train_${override}" ;;
+    esac
+    return 0
+  fi
+  local base
+  base="$(basename "$cfg")"
+  case "$base" in
+    *qrdqn*) echo "train_qrdqn" ;;
+    *dqn*)   echo "train_dqn" ;;
+    *rppo*)  echo "train_rppo" ;;
+    *ppo*)   echo "train_ppo" ;;
+    *a2c*)   echo "train_a2c" ;;
+    *)       echo "train_ppo" ;;
+  esac
+}
 
 WORK_ROOT="/opt/qwop"
 REPO_DIR="${WORK_ROOT}/qwop-python"
@@ -212,14 +241,8 @@ PY
 heartbeat_loop &
 HB_PID=$!
 
-ACTION="train_ppo"
-case "$TRAIN_CONFIG" in
-  *qrdqn*) ACTION="train_qrdqn" ;;
-  *dqn*) ACTION="train_dqn" ;;
-  *rppo*) ACTION="train_rppo" ;;
-  *a2c*) ACTION="train_a2c" ;;
-  *ppo*) ACTION="train_ppo" ;;
-esac
+ACTION="$(infer_train_action "$TRAIN_CONFIG" "$TRAIN_ACTION")"
+echo "[startup] train-action=${ACTION} (override='${TRAIN_ACTION:-}' config=${TRAIN_CONFIG})"
 
 TRAIN_CMD=(qwop-python -c "$TRAIN_CONFIG" --run-id "$JOB_ID")
 if [[ -n "${MAX_TIMESTEPS}" ]]; then
