@@ -39,6 +39,10 @@ class LogCallback(BaseCallback):
         for k in common.INFO_KEYS:
             if k == "is_success":
                 v = safe_mean([ep[k] for ep in ep_buffer])
+            elif k.startswith("split_") and k.endswith("_time"):
+                # -1.0 means mark not reached; average only crossed splits
+                crossed = [ep[k] for ep in ep_buffer if ep.get(k, -1.0) >= 0.0]
+                v = safe_mean(crossed) if crossed else float("nan")
             else:
                 v = safe_mean([ep[k] for ep in successful_eps])
             self.model.logger.record(f"user/{k}", v)
@@ -48,7 +52,11 @@ class LogCallback(BaseCallback):
 
 
 class VelocityRewardSchedulerCallback(BaseCallback):
-    """Updates ProgressiveVelocityIncentiveWrapper with training progress."""
+    """
+    Updates wrappers that expose set_progress(progress_remaining):
+    - ProgressiveVelocityIncentiveWrapper
+    - AntiScrapeCurriculumWrapper (when anneal_penalties=True)
+    """
 
     def __init__(self, venv, total_timesteps):
         super().__init__()

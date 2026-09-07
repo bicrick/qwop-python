@@ -1,0 +1,70 @@
+---
+# WR Experiment A — Phase B: pure-velocity fine-tune (scaffold toward Exp B)
+#
+# Loads a Phase A checkpoint and drops posture/scrape penalties near zero so
+# the policy optimizes forward velocity / race time. Split metrics
+# (split_10m_time / 50m / 100m) in info remain available for mid-race tuning.
+#
+# Set model_load_file to your Phase A final or best checkpoint, e.g.:
+#   model_load_file: "data/QRDQN-WR-PhaseA-<run_id>/model.zip"
+#
+# frames_per_step: 4 — keep identical to Phase A for action-timing transfer.
+# For Experiment D (action-rate ablation), compare fps=2 vs fps=4 separately.
+#
+# Exp B (extended-knee shaping) scaffolding: knee_extension_bonus_weight is
+# exposed but left at 0 here; raise it in a dedicated Exp B config later.
+#
+# Run:
+#   qwop-python train_qrdqn -c config/train_qrdqn_wr_phase_b.yml
+
+seed: ~
+run_id: ~
+
+# REQUIRED: point at a finished Phase A model before launching Phase B
+model_load_file: "data/QRDQN-WR-PhaseA-REPLACE_ME/model.zip"
+
+out_dir_template: "data/QRDQN-WR-PhaseB-{run_id}"
+log_tensorboard: true
+
+total_timesteps: 16_000_000
+max_episode_steps: 1000
+n_checkpoints: 40
+n_envs: 1
+
+learner_kwargs:
+  policy: "MlpPolicy"
+  buffer_size: 100000
+  learning_starts: 10000
+  batch_size: 64
+  tau: 1.0
+  gamma: 0.997
+  train_freq: 4
+  gradient_steps: 1
+  target_update_interval: 512
+  exploration_fraction: 0.15
+  exploration_initial_eps: 0.05
+  exploration_final_eps: 0
+
+learner_lr_schedule: "const_0.0005"
+
+env_kwargs:
+  __include__: "config/env.yml"
+  frames_per_step: 4
+  reduced_action_set: true
+  text_in_browser: "WR Phase B: pure velocity fine-tune..."
+
+# Penalties near zero — velocity-dominant. anneal_penalties=false keeps weights fixed.
+env_wrappers:
+  - module: "qwop_python.wrappers.anti_scrape_wrapper"
+    cls: "AntiScrapeCurriculumWrapper"
+    kwargs:
+      velocity_weight: 1.0
+      height_weight: 0.02
+      height_floor: 1.0
+      scrape_weight: 0.02
+      scrape_torso_max_height: 0.8
+      scrape_flexion_min: 0.55
+      knee_flex_weight: 0.0
+      # Scaffold for Exp B — still off; enable when running extended-knee shaping
+      knee_extension_bonus_weight: 0.0
+      anneal_penalties: false

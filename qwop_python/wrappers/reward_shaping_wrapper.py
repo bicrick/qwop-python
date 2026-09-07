@@ -7,6 +7,10 @@ Adds additional reward signals to encourage good form and discourage bad behavio
 - Joint limit penalty: Penalizes extreme joint angles (discourages splits)
 
 Based on qwop-wr's reward shaping approach.
+
+For WR Experiment A (anti-scrape / high-CoG curriculum with annealable
+penalties), prefer AntiScrapeCurriculumWrapper in anti_scrape_wrapper.py
+and config/train_qrdqn_wr_phase_{a,b}.yml — see doc/WR_EXPERIMENTS.md.
 """
 
 import numpy as np

@@ -95,6 +95,10 @@ class QWOPEnv(gymnasium.Env):
         self._episode_start_time = 0.0
         self._distance_buffer = []
         self._distance_buffer_size = 100  # Larger window to prevent oscillation from yielding positive velocity reward
+        # Mid-race split marks (metres). Times filled with physics score_time on first cross.
+        # Needed for WR iteration: Kurodo insight — WR is mid-race, not start.
+        self._split_marks_m = (10.0, 50.0, 100.0)
+        self._split_times = {m: None for m in self._split_marks_m}
 
         self.seedval = int(seed) if seed is not None else None
         self._last_obs = None
@@ -142,9 +146,11 @@ class QWOPEnv(gymnasium.Env):
         self._total_reward = 0.0
         self._episode_start_time = time.time()
         self._distance_buffer = []
+        self._split_times = {m: None for m in self._split_marks_m}
 
         raw_obs = self.obs_extractor.extract_raw(self.game.physics)
         obs = self.obs_extractor.normalize_observation(raw_obs)
+        self._update_split_times()
         info = self._build_info()
         self._last_obs = obs
         self._last_raw_obs = raw_obs
@@ -190,6 +196,7 @@ class QWOPEnv(gymnasium.Env):
         reward = self._calc_reward()
         self._total_reward += reward
         terminated = self.game.game_state.game_ended
+        self._update_split_times()
         info = self._build_info()
 
         self._last_obs = obs
@@ -199,6 +206,19 @@ class QWOPEnv(gymnasium.Env):
         self._episode_steps += 1
 
         return obs, reward, terminated, False, info
+
+    def _update_split_times(self):
+        """
+        Record physics score_time when distance first crosses 10 / 50 / 100 m.
+
+        Uses game.score_time (real physics seconds), not protocol-scaled reward time.
+        Values stay sticky once set so episode-end Monitor info has the splits.
+        """
+        distance = self.game.game_state.score
+        score_time = self.game.score_time
+        for mark in self._split_marks_m:
+            if self._split_times[mark] is None and distance >= mark:
+                self._split_times[mark] = float(score_time)
     
     def _calc_reward(self):
         """
@@ -326,6 +346,11 @@ class QWOPEnv(gymnasium.Env):
             and not self.game.game_state.fallen
         ) else 0.0
 
+        # -1.0 = mark not reached this episode (Monitor needs a numeric info keyword)
+        split_10 = self._split_times[10.0]
+        split_50 = self._split_times[50.0]
+        split_100 = self._split_times[100.0]
+
         return {
             'time': time_val,
             'distance': distance,
@@ -338,6 +363,9 @@ class QWOPEnv(gymnasium.Env):
             'episode_steps': self._episode_steps,
             'total_reward': self._total_reward,
             'episode_start_time': self._episode_start_time,
+            'split_10m_time': float(split_10) if split_10 is not None else -1.0,
+            'split_50m_time': float(split_50) if split_50 is not None else -1.0,
+            'split_100m_time': float(split_100) if split_100 is not None else -1.0,
         }
     
     def render(self):

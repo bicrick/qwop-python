@@ -31,8 +31,17 @@ from ..qwop_env import QWOPEnv
 
 # Keys of user-defined metrics in the `info` dict.
 # Prefer speed_mps (metres/s). avgspeed is the legacy qwop-gym value (~10x high).
-INFO_KEYS = ("time", "distance", "speed_mps", "avgspeed", "is_success")
-
+# Split times support mid-race optimization (WR is mid-race, not start).
+INFO_KEYS = (
+    "time",
+    "distance",
+    "speed_mps",
+    "avgspeed",
+    "is_success",
+    "split_10m_time",
+    "split_50m_time",
+    "split_100m_time",
+)
 # QWOPEnv kwargs we accept (filter out browser-specific etc.)
 ALLOWED_ENV_KWARGS = {
     "frames_per_step",
