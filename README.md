@@ -97,6 +97,15 @@ Visualize TensorBoard logs:
 tensorboard --logdir data/
 ```
 
+Live WR chase dashboard (local TB + optional GCS farm heartbeats):
+
+```bash
+python scripts/wr_dashboard.py --port 8787
+# optional: --gcs-prefix gs://qwop-wr-training/metrics/
+```
+
+See [`doc/WR_DASHBOARD.md`](doc/WR_DASHBOARD.md) and [`infra/gcp/`](infra/gcp/) for the spot-worker farm scaffold.
+
 Configure `model_file` in `config/spectate.yml` and watch a trained agent:
 
 ```bash
