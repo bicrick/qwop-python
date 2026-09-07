@@ -256,23 +256,57 @@ class QWOPEnv(gymnasium.Env):
 
         return float(reward)
     
+    def _rolling_distance_delta(self):
+        """
+        Metres gained over the distance buffer window.
+
+        Buffer layout matches _calc_reward:
+          - Growing: [oldest, ..., newest] → ds = newest - oldest
+          - Full:    [newest, oldest, ..., second_newest] → ds = newest - oldest
+        """
+        buf = self._distance_buffer
+        if len(buf) < 2:
+            return 0.0
+        if len(buf) < self._distance_buffer_size:
+            return buf[-1] - buf[0]
+        return buf[0] - buf[1]
+
     def _build_info(self):
         """
         Build info dictionary with metadata.
-        
-        Returns:
-            Dictionary with game state information
+
+        ``time`` is physics seconds (game.score_time; +0.04 per physics tick).
+        ``distance`` is metres (torso world-x / 10).
+
+        Speed fields:
+          - ``speed_mps``: honest metres/s over the rolling buffer (or
+            distance/time when the buffer is still filling). Prefer this.
+          - ``avgspeed``: legacy qwop-gym ``FN_UPDATE_STATS`` formula
+            ``10 * ds / dt``. Because ``distance`` is already in metres,
+            that factor of 10 makes avgspeed ~Box2D-world-units/s
+            (~10x too high vs metres/s). Kept for API compatibility;
+            do not use it for reward shaping or WR claims.
         """
         distance = self.game.game_state.score
         time_val = self.game.score_time
-        # Rolling speed (matches qwop-gym FN_UPDATE_STATS formula)
         buf = self._distance_buffer
+        n_intervals = max(len(buf) - 1, 1)
+        dt_physics = PHYSICS_TIMESTEP * self.frames_per_step * n_intervals
+
         if len(buf) >= 2:
-            ds = buf[0] - buf[-1]
-            dt = PHYSICS_TIMESTEP * self.frames_per_step * (len(buf) - 1)
-            avgspeed = 10 * ds / (dt or 1)
+            ds = self._rolling_distance_delta()
+            # Honest m/s (metres already; physics-clock dt).
+            speed_mps = ds / (dt_physics or 1.0)
+            # Legacy qwop-gym formula (intentionally ~10x high vs m/s).
+            # Uses the historical buffer endpoints (buf[0]-buf[-1]), not
+            # the corrected newest-oldest delta, to stay bit-compatible
+            # with old logs that compared against qwop-gym avgspeed.
+            ds_legacy = buf[0] - buf[-1]
+            avgspeed = 10 * ds_legacy / (dt_physics or 1.0)
         else:
-            avgspeed = distance / time_val if time_val > 0 else 0.0
+            speed_mps = distance / time_val if time_val > 0 else 0.0
+            avgspeed = speed_mps
+
         is_success = 1.0 if (
             self.game.game_state.game_ended
             and self.game.game_state.jump_landed
@@ -282,6 +316,7 @@ class QWOPEnv(gymnasium.Env):
         return {
             'time': time_val,
             'distance': distance,
+            'speed_mps': speed_mps,
             'avgspeed': avgspeed,
             'is_success': is_success,
             'fallen': self.game.game_state.fallen,

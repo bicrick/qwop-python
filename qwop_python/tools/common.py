@@ -29,8 +29,9 @@ from gymnasium.envs.registration import register
 
 from ..qwop_env import QWOPEnv
 
-# Keys of user-defined metrics in the `info` dict
-INFO_KEYS = ("time", "distance", "avgspeed", "is_success")
+# Keys of user-defined metrics in the `info` dict.
+# Prefer speed_mps (metres/s). avgspeed is the legacy qwop-gym value (~10x high).
+INFO_KEYS = ("time", "distance", "speed_mps", "avgspeed", "is_success")
 
 # QWOPEnv kwargs we accept (filter out browser-specific etc.)
 ALLOWED_ENV_KWARGS = {

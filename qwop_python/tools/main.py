@@ -77,6 +77,12 @@ def run(action, cfg, cli_overrides=None):
         benchmark(steps=cfg.get("steps", 10000))
         return
 
+    if action == "evaluate":
+        ensure_sb3_installed()
+        from .evaluate import evaluate
+        evaluate(cfg)
+        return
+
     if action in ("train_bc", "train_gail", "train_airl"):
         print("Not implemented: %s" % action)
         sys.exit(1)
@@ -151,6 +157,7 @@ def run_bootstrap():
         "spectate.yml",
         "race.yml",
         "benchmark.yml",
+        "evaluate.yml",
         "train_ppo.yml",
         "train_qrdqn.yml",
         "train_a2c.yml",
@@ -198,6 +205,7 @@ action:
   spectate          watch trained model play
   race              race two models side by side
   benchmark         measure env steps/sec
+  evaluate          headless physics-time eval of a saved model
   train_ppo         train using PPO
   train_ppo_5       train using PPO5 (success-only episode filtering)
   train_dqn         train using DQN
@@ -211,6 +219,7 @@ examples:
   %(prog)s -c config/record.yml play
   %(prog)s spectate
   %(prog)s race
+  %(prog)s -c config/eval_wr.yml evaluate
   %(prog)s train_ppo
 """
 

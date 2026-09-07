@@ -86,7 +86,8 @@ class VerboseWrapper(gym.Wrapper):
             print("Elapsed time (real): %.1f seconds" % elapsed_time)
             print("Elapsed time (game): %.1f seconds" % info["time"])
             print("Distance ran: %.1f m" % info["distance"])
-            print("Average speed: %.1f m/s" % info["avgspeed"])
+            speed = info.get("speed_mps", info.get("avgspeed", 0))
+            print("Average speed: %.1f m/s" % speed)
             print("FPS: %.1f" % (self.n_steps / elapsed_time))
 
         self.last_distance = info["distance"]
