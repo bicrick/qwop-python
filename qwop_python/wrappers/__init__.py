@@ -11,6 +11,7 @@ from .reward_shaping_wrapper import (
 )
 from .verbose_wrapper import VerboseWrapper
 from .record_wrapper import RecordWrapper
+from .stuck_detection_wrapper import StuckDetectionWrapper
 
 __all__ = [
     "RewardShapingWrapper",
@@ -18,4 +19,5 @@ __all__ = [
     "ProgressiveVelocityIncentiveWrapper",
     "VerboseWrapper",
     "RecordWrapper",
+    "StuckDetectionWrapper",
 ]

@@ -263,12 +263,14 @@ class VelocityIncentiveWrapper(gymnasium.Wrapper):
         """
         obs, reward, terminated, truncated, info = self.env.step(action)
         
-        # Use avgspeed (smoothed over 100-frame buffer) when available to avoid oscillation rewards
+        # Prefer speed_mps (honest metres/s). Do NOT use legacy info['avgspeed']:
+        # that field keeps the qwop-gym 10*ds/dt formula (~10x too high vs m/s)
+        # and would contaminate velocity bonuses if used here.
         dist = info['distance']
         t = info['time']
         dt = max(t - self.last_time, 1e-8)
         instant_velocity = (dist - self.last_distance) / dt
-        velocity = info.get('avgspeed', instant_velocity)
+        velocity = info.get('speed_mps', instant_velocity)
         if velocity < 0:
             velocity = 0.0
         

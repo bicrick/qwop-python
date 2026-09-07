@@ -1,9 +1,8 @@
-# Configuration for evaluating a trained model (physics-clock metrics)
-# Prefer config/eval_wr.yml for WR-oriented runs.
-model_file: "data/models/QRDQN_*/final_model.zip"
+# config/evaluate.yml — also available as config/eval_wr.yml for WR runs
+model_file: "data/PPO-*/model.zip"
 model_mod: "stable_baselines3"
-model_cls: "QRDQN"
-n_episodes: 100
+model_cls: "PPO"
+n_episodes: 20
 seed: 42
 deterministic: true
 render: false
@@ -13,6 +12,7 @@ finish_distance_m: 100.0
 out_json: ~
 
 env_kwargs:
+  __include__: "config/env.yml"
   frames_per_step: 4
   reduced_action_set: true
 

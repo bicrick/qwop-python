@@ -17,7 +17,7 @@ from gymnasium import spaces
 from .game import QWOPGame
 from .observations import ObservationExtractor
 from .actions import ActionMapper
-from .data import PHYSICS_TIMESTEP, SCREEN_WIDTH, SCREEN_HEIGHT, OBS_PANEL_WIDTH
+from .data import PHYSICS_TIMESTEP, SCORE_TIME_STEP, SCREEN_WIDTH, SCREEN_HEIGHT, OBS_PANEL_WIDTH
 
 
 class QWOPEnv(gymnasium.Env):
@@ -25,11 +25,12 @@ class QWOPEnv(gymnasium.Env):
     QWOP Gymnasium environment for RL training.
 
     The environment runs headlessly by default (no rendering) for maximum
-    training speed. Physics runs at fixed 0.04s timesteps (25 Hz).
+    training speed. Box2D steps at fixed 0.04s; the HUD/score clock advances
+    by 1/30 s per update (matching real HTML/JS QWOP).
 
     Args:
         frames_per_step: Number of physics ticks per env step (default: 1)
-                        frames_per_step=4 means each action lasts 0.16s
+                        frames_per_step=4 means each action lasts 4 updates
         reduced_action_set: If True, use 9 actions instead of 16 (default: False)
         failure_cost: Penalty for falling (default: 10.0)
         success_reward: Bonus for completing the course (default: 50.0)
@@ -38,6 +39,8 @@ class QWOPEnv(gymnasium.Env):
         speed_rew_mult: Multiplier for velocity in reward (default: 0.2)
         seed: Random seed for deterministic physics (default: None)
         render_mode: None (headless) or "human" (Pygame window)
+        hurdles_enabled: If set, override data.HURDLES_ENABLED (default off).
+            Set True for browser-parity runs with the mid-track hurdle.
     """
 
     metadata = {"render_modes": ["human"]}
@@ -54,13 +57,16 @@ class QWOPEnv(gymnasium.Env):
         seed=None,
         render_mode=None,
         show_observation_panel=False,
+        hurdles_enabled=None,
     ):
         super().__init__()
 
         self.render_mode = render_mode
         self.show_observation_panel = show_observation_panel
         headless = render_mode is None
-        self.game = QWOPGame(seed=seed, verbose=False, headless=headless)
+        self.game = QWOPGame(
+            seed=seed, verbose=False, headless=headless, hurdles_enabled=hurdles_enabled
+        )
         self.game.initialize()
 
         self.obs_extractor = ObservationExtractor()
@@ -198,10 +204,10 @@ class QWOPEnv(gymnasium.Env):
         """
         Calculate reward based on distance, velocity, and time cost.
 
-        Uses protocol-scale dt to match qwop-wr (browser env) exactly. qwop-wr sends
-        time = scoreTime/10 where scoreTime advances by stepsize*(1/30) per step.
-        Python uses real physics seconds (0.04 per tick), so we use dt_protocol instead
-        of raw dt for 1-to-1 reward parity.
+        Uses protocol-scale dt to match qwop-wr / qwop-gym RL logs:
+          protocol_time = HUD_scoreTime / 10
+        where HUD scoreTime advances by SCORE_TIME_STEP (1/30) per update.
+        Box2D still steps PHYSICS_TIMESTEP (0.04); do not confuse the two.
 
         Velocity is SMOOTHED over the distance buffer when len(buffer) >= 2 to prevent
         oscillation/jitter from generating spurious rewards when the agent is stationary.
@@ -220,8 +226,8 @@ class QWOPEnv(gymnasium.Env):
         dist = self.game.game_state.score  # metres (torso x / 10)
         ds = dist - self._last_distance
 
-        # Protocol-scale dt: matches qwop-wr (TIMESTEP_SIZE=1/30, time=scoreTime/10)
-        dt_protocol = self.frames_per_step * (1 / 30) / 10
+        # Protocol-scale dt: qwop-gym logs time = scoreTime/10
+        dt_protocol = self.frames_per_step * SCORE_TIME_STEP / 10
         dt_protocol = max(dt_protocol, 1e-8)
 
         # Use smoothed velocity over buffer when available (prevents oscillation exploitation)
@@ -256,23 +262,64 @@ class QWOPEnv(gymnasium.Env):
 
         return float(reward)
     
+    def _rolling_distance_delta(self):
+        """
+        Metres gained over the distance buffer window.
+
+        Buffer layout matches _calc_reward:
+          - Growing: [oldest, ..., newest] → ds = newest - oldest
+          - Full:    [newest, oldest, ..., second_newest] → ds = newest - oldest
+        """
+        buf = self._distance_buffer
+        if len(buf) < 2:
+            return 0.0
+        if len(buf) < self._distance_buffer_size:
+            return buf[-1] - buf[0]
+        return buf[0] - buf[1]
+
     def _build_info(self):
         """
         Build info dictionary with metadata.
-        
-        Returns:
-            Dictionary with game state information
+
+        ``time`` is HUD seconds (`game.score_time`), matching real HTML/JS
+        QWOP: +SCORE_TIME_STEP (1/30) per update while Box2D steps 0.04.
+        Human WR 45.530s is on this clock. qwop-gym RL protocol time ≈ time/10.
+
+        ``distance`` is metres (torso world-x / 10).
+
+        Success (`is_success`) is land-based: jump_landed and not fallen
+        (sand-pit land / JS endGame). This differs from qwop-gym's common
+        ``distance >= 100`` escape criterion — see TRANSFER_AND_METRICS.md.
+
+        Speed fields:
+          - ``speed_mps``: metres / HUD-seconds over the rolling buffer (or
+            distance/time). Prefer this for claims.
+          - ``avgspeed``: legacy qwop-gym ``FN_UPDATE_STATS`` formula
+            ``10 * ds / dt_box2d``. Because ``distance`` is already in metres,
+            that factor of 10 makes avgspeed ~Box2D-world-units/s
+            (~10x too high vs metres/s). Kept for API compatibility;
+            do not use it for reward shaping or WR claims.
         """
         distance = self.game.game_state.score
         time_val = self.game.score_time
-        # Rolling speed (matches qwop-gym FN_UPDATE_STATS formula)
         buf = self._distance_buffer
+        n_intervals = max(len(buf) - 1, 1)
+        dt_hud = SCORE_TIME_STEP * self.frames_per_step * n_intervals
+        # Legacy avgspeed denominator used Box2D dt (pre-HUD-alignment).
+        dt_box2d = PHYSICS_TIMESTEP * self.frames_per_step * n_intervals
+
         if len(buf) >= 2:
-            ds = buf[0] - buf[-1]
-            dt = PHYSICS_TIMESTEP * self.frames_per_step * (len(buf) - 1)
-            avgspeed = 10 * ds / (dt or 1)
+            ds = self._rolling_distance_delta()
+            # Honest m/s on the HUD clock (comparable to browser scoreTime).
+            speed_mps = ds / (dt_hud or 1.0)
+            # Legacy qwop-gym formula (intentionally ~10x high vs m/s).
+            # Uses historical buffer endpoints (buf[0]-buf[-1]) and Box2D dt.
+            ds_legacy = buf[0] - buf[-1]
+            avgspeed = 10 * ds_legacy / (dt_box2d or 1.0)
         else:
-            avgspeed = distance / time_val if time_val > 0 else 0.0
+            speed_mps = distance / time_val if time_val > 0 else 0.0
+            avgspeed = speed_mps
+
         is_success = 1.0 if (
             self.game.game_state.game_ended
             and self.game.game_state.jump_landed
@@ -282,6 +329,7 @@ class QWOPEnv(gymnasium.Env):
         return {
             'time': time_val,
             'distance': distance,
+            'speed_mps': speed_mps,
             'avgspeed': avgspeed,
             'is_success': is_success,
             'fallen': self.game.game_state.fallen,

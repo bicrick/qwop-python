@@ -24,9 +24,14 @@ SCREEN_HEIGHT = 400
 OBS_PANEL_WIDTH = 400
 
 # Physics simulation parameters
-PHYSICS_TIMESTEP = 0.04  # Fixed timestep - 25 FPS physics (1/25)
+PHYSICS_TIMESTEP = 0.04  # Fixed Box2D world.Step dt (25 Hz physics)
 VELOCITY_ITERATIONS = 5  # Box2D velocity constraint solver iterations
 POSITION_ITERATIONS = 5  # Box2D position constraint solver iterations
+
+# HUD / score clock (real HTML/JS QWOP): each update does scoreTime += 1/30
+# while physics still steps 0.04. info['time'] follows this clock after alignment.
+# qwop-gym RL logs protocol time = scoreTime/10; human WR 45.530s is HUD time.
+SCORE_TIME_STEP = 1.0 / 30.0
 
 # =============================================================================
 # COLLISION CATEGORIES
@@ -400,7 +405,9 @@ TRACK_DENSITY = 30  # Very heavy (static body)
 # Source: doc/reference/QWOP_COMPLETE_DATA_REFERENCE.md
 # =============================================================================
 
-HURDLES_ENABLED = False  # Set to True to enable hurdle obstacle
+# Default off for fast training. Override per env via QWOPEnv(hurdles_enabled=True)
+# or env_kwargs.hurdles_enabled for browser-parity runs (see TRANSFER_AND_METRICS.md).
+HURDLES_ENABLED = False
 
 HURDLE_BASE_POS = (10000, 175.5)  # (x, y) in pixels
 HURDLE_BASE_SIZE = (67, 12)  # (width, height) in pixels

@@ -23,7 +23,6 @@ from .data import (
     SCREEN_HEIGHT,
     OBS_PANEL_WIDTH,
     SAND_PIT_AT,
-    HURDLES_ENABLED,
     HURDLE_BASE_SIZE,
     HURDLE_TOP_SIZE
 )
@@ -317,7 +316,7 @@ class QWOPRenderer:
         cell_w = 95
         steps = info.get("episode_steps", 0)
         tot_rew = info.get("total_reward", 0)
-        avgspeed = info.get("avgspeed", 0)
+        speed = info.get("speed_mps", info.get("avgspeed", 0))
         distance = info.get("distance", 0)
         _cell_text("Steps:", x + pad + 4, row_y, cell_w, self.summary_font, text_muted, "right")
         _cell_text(str(steps), x + pad + cell_w, row_y, cell_w, self.summary_font)
@@ -325,7 +324,7 @@ class QWOPRenderer:
         _cell_text("%.2f" % tot_rew, x + pad + cell_w * 3, row_y, cell_w, self.summary_font)
         row_y += 18
         _cell_text("Speed:", x + pad + 4, row_y, cell_w, self.summary_font, text_muted, "right")
-        _cell_text("%.1f m/s" % avgspeed, x + pad + cell_w, row_y, cell_w, self.summary_font)
+        _cell_text("%.1f m/s" % speed, x + pad + cell_w, row_y, cell_w, self.summary_font)
         _cell_text("Distance:", x + pad + cell_w * 2 + 4, row_y, cell_w, self.summary_font, text_muted, "right")
         _cell_text("%.1f m" % distance, x + pad + cell_w * 3, row_y, cell_w, self.summary_font)
         row_y += 18
@@ -488,8 +487,8 @@ class QWOPRenderer:
         Args:
             game: QWOPGame instance
         """
-        # Only draw if hurdles are enabled
-        if not HURDLES_ENABLED:
+        # Only draw if hurdles are enabled for this game instance
+        if not getattr(game, "hurdles_enabled", False):
             return
         
         # Draw hurdle base
