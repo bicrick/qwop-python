@@ -102,28 +102,61 @@ def expand_env_kwargs(env_kwargs):
     return env_kwargs
 
 
-def register_env(env_kwargs=None, env_wrappers=None, env_id="local/QWOP-v1"):
-    if env_kwargs is None:
-        env_kwargs = {}
-    if env_wrappers is None:
-        env_wrappers = []
+# Picklable factory state for SubprocVecEnv workers (gymnasium registry is
+# process-local; workers must reconstruct envs without relying on registration).
+_REGISTERED_ENV_KWARGS = {}
+_REGISTERED_ENV_WRAPPERS = []
 
-    def wrapped_env_creator(**kwargs):
-        filtered = {k: v for k, v in kwargs.items() if k in ALLOWED_ENV_KWARGS}
+
+class RegisteredEnvFactory:
+    """Picklable env factory that carries kwargs/wrappers into Subproc workers."""
+
+    def __init__(self, env_kwargs, env_wrappers):
+        self.env_kwargs = dict(env_kwargs or {})
+        self.env_wrappers = list(env_wrappers or [])
+
+    def __call__(self, **kwargs):
+        merged = {**self.env_kwargs, **kwargs}
+        filtered = {k: v for k, v in merged.items() if k in ALLOWED_ENV_KWARGS}
         env = QWOPEnv(**filtered)
 
-        for wrapper in env_wrappers:
+        for wrapper in self.env_wrappers:
             wrapper_mod = importlib.import_module(wrapper["module"])
             wrapper_cls = getattr(wrapper_mod, wrapper["cls"])
             env = wrapper_cls(env, **wrapper.get("kwargs", {}))
 
         return env
 
+
+def register_env(env_kwargs=None, env_wrappers=None, env_id="local/QWOP-v1"):
+    global _REGISTERED_ENV_KWARGS, _REGISTERED_ENV_WRAPPERS
+
+    if env_kwargs is None:
+        env_kwargs = {}
+    if env_wrappers is None:
+        env_wrappers = []
+
+    _REGISTERED_ENV_KWARGS = dict(env_kwargs)
+    _REGISTERED_ENV_WRAPPERS = list(env_wrappers)
+    factory = RegisteredEnvFactory(_REGISTERED_ENV_KWARGS, _REGISTERED_ENV_WRAPPERS)
+
     register(
         id=env_id,
-        entry_point=wrapped_env_creator,
-        kwargs=env_kwargs,
+        entry_point=factory,
+        kwargs={},
     )
+
+
+def make_registered_env(**kwargs):
+    """Build a QWOP env using the last register_env() settings (parent process)."""
+    return RegisteredEnvFactory(_REGISTERED_ENV_KWARGS, _REGISTERED_ENV_WRAPPERS)(
+        **kwargs
+    )
+
+
+def get_registered_env_factory():
+    """Return a picklable factory for VecEnv workers."""
+    return RegisteredEnvFactory(_REGISTERED_ENV_KWARGS, _REGISTERED_ENV_WRAPPERS)
 
 
 def gen_seed():

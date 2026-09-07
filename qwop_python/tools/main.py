@@ -105,6 +105,7 @@ def run(action, cfg, cli_overrides=None):
                 "total_timesteps": cfg.get("total_timesteps", 1000000),
                 "max_episode_steps": cfg.get("max_episode_steps", 5000),
                 "n_checkpoints": cfg.get("n_checkpoints", 5),
+                "n_envs": cfg.get("n_envs", 1),
                 "learner_lr_schedule": cfg.get("learner_lr_schedule", "const_0.001"),
             }
         )
@@ -187,6 +188,12 @@ def main():
     )
     parser.add_argument("--run-id", type=str, help="run id (train_*)")
     parser.add_argument(
+        "--max-timesteps",
+        type=int,
+        default=None,
+        help="override total_timesteps (train_* scout/short runs)",
+    )
+    parser.add_argument(
         "--obs",
         "--observation-panel",
         dest="observation_panel",
@@ -259,6 +266,9 @@ examples:
 
     if args.run_id is not None:
         cfg["run_id"] = args.run_id
+
+    if args.max_timesteps is not None:
+        cfg["total_timesteps"] = args.max_timesteps
 
     if args.action == "spectate" or (
         args.observation_panel and args.action in ("play", "record")
