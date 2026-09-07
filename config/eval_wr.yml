@@ -1,0 +1,45 @@
+# Headless WR-oriented eval (HUD-clock metrics).
+# Usage:
+#   qwop-python -c config/eval_wr.yml evaluate
+#
+# Reports info['time'] (HUD score_time, +1/30 per update — matches browser),
+# distance, success, and speed_mps = distance/time. See doc/TRANSFER_AND_METRICS.md.
+
+# Path or glob to a saved SB3 zip (last match wins for globs)
+model_file: "data/PPO-*/model.zip"
+model_mod: "stable_baselines3"
+model_cls: "PPO"
+
+n_episodes: 50
+seed: 42
+deterministic: true
+render: false
+
+# Env steps before TimeLimit truncation. With frames_per_step=4:
+#   HUD seconds ≈ steps * 4 * (1/30) = steps * 0.133…
+# 2500 steps ≈ 333s HUD — enough headroom vs human WR 45.530s.
+max_episode_steps: 2500
+
+# Claim thresholds (HUD seconds / metres) — human WR is HUD time
+human_wr_seconds: 45.530
+finish_distance_m: 100.0
+
+# Optional JSON dump of per-episode rows + summary
+out_json: "data/eval/eval_wr.json"
+
+env_kwargs:
+  __include__: "config/env.yml"
+  frames_per_step: 4
+  reduced_action_set: true
+  # Uncomment for browser-parity mid-track hurdle (default off for training):
+  # hurdles_enabled: true
+
+# Optional: end belly-slide crawls early (JS does not treat torso as fall).
+# Omit this block to leave stuck detection off (default / training-safe).
+env_wrappers:
+  - module: qwop_python.wrappers.stuck_detection_wrapper
+    cls: StuckDetectionWrapper
+    kwargs:
+      patience_steps: 125   # ~16.7s HUD at frames_per_step=4
+      min_speed_mps: 0.05
+      flat_distance_m: 0.5

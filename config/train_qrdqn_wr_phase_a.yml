@@ -1,0 +1,78 @@
+---
+# WR Experiment A — Phase A: anti-scrape / high-CoG curriculum
+#
+# Goal: learn an upright stride to ≥20m before optimizing pure speed.
+# Target WR to beat later: 45.530s (train in Python, transfer to browser).
+#
+# Frames per step: 4 (default here)
+#   - Matches existing train_qrdqn_wr.yml / successful WR-oriented runs
+#   - Each action lasts 4 physics ticks (0.16s) → better sample efficiency
+#   - Use frames_per_step: 2 only if you need finer mid-stride corrections
+#
+# Fall detection unchanged: head / arms / forearms only (no torso).
+#
+# Run:
+#   qwop-python train_qrdqn -c config/train_qrdqn_wr_phase_a.yml
+#
+# After Phase A produces upright ≥20m runs, continue with Phase B:
+#   config/train_qrdqn_wr_phase_b.yml (penalties → 0, velocity focus)
+
+seed: ~
+run_id: ~
+model_load_file: ~
+
+out_dir_template: "data/QRDQN-WR-PhaseA-{run_id}"
+log_tensorboard: true
+
+total_timesteps: 32_000_000
+max_episode_steps: 1000
+n_checkpoints: 50
+n_envs: 1
+
+learner_kwargs:
+  policy: "MlpPolicy"
+  buffer_size: 100000
+  learning_starts: 100000
+  batch_size: 64
+  tau: 1.0
+  gamma: 0.997
+  train_freq: 4
+  gradient_steps: 1
+  target_update_interval: 512
+  exploration_fraction: 0.3
+  exploration_initial_eps: 0.2
+  exploration_final_eps: 0
+
+learner_lr_schedule: "const_0.001"
+
+env_kwargs:
+  __include__: "config/env.yml"
+  frames_per_step: 4
+  reduced_action_set: true
+  text_in_browser: "WR Phase A: anti-scrape upright stride..."
+
+# Anti-scrape curriculum — see qwop_python/wrappers/anti_scrape_wrapper.py
+# anneal_penalties=true ramps scrape/knee-flex (and optionally height) toward
+# final_* over the run via VelocityRewardSchedulerCallback.set_progress.
+env_wrappers:
+  - module: "qwop_python.wrappers.anti_scrape_wrapper"
+    cls: "AntiScrapeCurriculumWrapper"
+    kwargs:
+      velocity_weight: 0.5
+      height_weight: 0.25
+      height_floor: 1.2
+      scrape_weight: 0.6
+      scrape_torso_max_height: 1.0
+      scrape_flexion_min: 0.45
+      knee_flex_weight: 0.05
+      # Exp B scaffold — leave 0 in Phase A
+      knee_extension_bonus_weight: 0.0
+      anneal_penalties: true
+      initial_scrape_weight: 0.6
+      final_scrape_weight: 0.15
+      initial_knee_flex_weight: 0.05
+      final_knee_flex_weight: 0.01
+      initial_height_weight: 0.25
+      final_height_weight: 0.1
+      anneal_hold_fraction: 0.2
+      anneal_ramp_fraction: 0.9

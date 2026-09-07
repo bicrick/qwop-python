@@ -1,0 +1,27 @@
+{
+  "updated_at": "2026-09-07T21:00:00Z",
+  "updated_by": "grok-bot",
+  "unit": "HUD seconds",
+  "targets": {
+    "human_wr_hud": 45.53,
+    "ai_best_hud": 47.34,
+    "expert_baseline_hud": 55.6
+  },
+  "entries": [
+    {
+      "rank": 1,
+      "job_id": "job-scout-000",
+      "label": "scout fps1 done",
+      "best_hud_time": 61.2,
+      "source": "gcp",
+      "notes": "fixture example"
+    },
+    {
+      "rank": 2,
+      "job_id": "job-scout-001",
+      "label": "scout fps2 live",
+      "best_hud_time": 63.4,
+      "source": "gcp"
+    }
+  ]
+}

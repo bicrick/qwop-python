@@ -1,0 +1,8 @@
+{
+  "job_id": "job-scout-000",
+  "config": "config/sweeps/scout_ppo_fps1.yml",
+  "finished_at": "2026-09-07T18:30:00Z",
+  "best_hud_time": 61.2,
+  "status": "done",
+  "enqueued_by": "grok-bot"
+}

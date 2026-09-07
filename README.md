@@ -14,7 +14,7 @@ This project reimplements the qwop-gym environment and tooling in pure Python, r
 
 * **Pure Python + Box2D** - No browser, WebGL, or chromedriver. Runs entirely in process.
 * **Headless by default** - Training uses no rendering; play, spectate, and replay use Pygame.
-* **Parallelization-ready** - Single-process training matches qwop-gym; parallel envs can be re-added later for higher throughput.
+* **Parallelization-ready** - `n_envs` uses `SubprocVecEnv` (DummyVecEnv fallback); see `doc/PARALLEL_SWEEPS.md` for multi-run CPU scouts.
 * **Same interface** - 60-dim observations, Discrete 9/16 actions, compatible reward model. Behavior matches qwop-gym.
 
 ## Install
@@ -65,6 +65,7 @@ action:
   replay         replay recorded actions
   spectate       watch trained model play
   benchmark      measure env steps/sec
+  evaluate       headless HUD-time eval of a saved model
   train_ppo      train using PPO
   train_dqn      train using DQN
   train_qrdqn    train using QRDQN
@@ -76,6 +77,7 @@ examples:
   qwop-python play
   qwop-python -c config/record.yml play
   qwop-python spectate
+  qwop-python -c config/eval_wr.yml evaluate
   qwop-python train_ppo
 ```
 
@@ -97,6 +99,17 @@ Visualize TensorBoard logs:
 tensorboard --logdir data/
 ```
 
+Live WR chase dashboard (local TB + optional GCS farm heartbeats):
+
+```bash
+python scripts/wr_dashboard.py --port 8787 --fixture-dir infra/gcp/fixtures
+# live:  --gcs-bucket gs://qwop-wr-training
+# local: --local-only
+```
+
+See [`doc/WR_DASHBOARD.md`](doc/WR_DASHBOARD.md) and [`infra/gcp/CONTROL_PLANE.md`](infra/gcp/CONTROL_PLANE.md).
+Grok Bot orchestrates the farm; this dashboard is read-only.
+
 Configure `model_file` in `config/spectate.yml` and watch a trained agent:
 
 ```bash
@@ -113,6 +126,12 @@ Benchmark env throughput (steps/sec):
 
 ```bash
 qwop-python benchmark
+```
+
+Evaluate a saved model with HUD-clock metrics (see `doc/TRANSFER_AND_METRICS.md`):
+
+```bash
+qwop-python -c config/eval_wr.yml evaluate
 ```
 
 ## Create an instance in code
@@ -141,7 +160,20 @@ qwop_python/           # Main package
   wrappers/            # VerboseWrapper, RecordWrapper
 config/                # YAML configs (created by bootstrap)
 data/                  # Models, logs, checkpoints, recordings
+scripts/               # Parallel sweep launcher + monitor
+doc/PARALLEL_SWEEPS.md # CPU-safe parallel scout experiments
 ```
+
+## Parallel scout sweeps
+
+On limited machines (e.g. 8 vCPU / 16GB), run 2–4 short experiments in parallel:
+
+```bash
+python scripts/sweep_parallel.py --builtin -n 2 --max-timesteps 200000
+python scripts/monitor_runs.py --latest
+```
+
+See [doc/PARALLEL_SWEEPS.md](doc/PARALLEL_SWEEPS.md). `n_envs` in train YAML is honored (`SubprocVecEnv`, with `DummyVecEnv` fallback).
 
 ## License
 

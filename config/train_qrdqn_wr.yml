@@ -1,6 +1,8 @@
 ---
-# Optimized QRDQN config for World Record (100m+) attempt
-# Based on successful W&B runs that achieved 100m+ in <6 seconds
+# Optimized QRDQN config for World Record (100m+) attempt.
+# W&B runs that logged "100m+ in <6 seconds" were on qwop-gym *protocol* time
+# (scoreTime/10). That is ~60s HUD / on-screen time — not a sub-WR HUD finish.
+# Human WR 45.530s is HUD time; see doc/TRANSFER_AND_METRICS.md.
 
 # [int] (optional) Env seed (auto-generated if blank)
 seed: ~

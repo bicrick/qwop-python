@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://qwop-wr.local/schemas/job.json",
+  "title": "QWOP WR queue job",
+  "type": "object",
+  "required": ["job_id", "config", "created_at", "enqueued_by"],
+  "properties": {
+    "job_id": { "type": "string", "minLength": 1 },
+    "config": { "type": "string", "description": "Repo-relative train YAML path" },
+    "priority": { "type": "integer" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "started_at": { "type": "string", "format": "date-time" },
+    "finished_at": { "type": "string", "format": "date-time" },
+    "enqueued_by": { "type": "string", "description": "Usually grok-bot" },
+    "claimed_by": { "type": "string", "description": "GCE instance name" },
+    "zone": { "type": "string" },
+    "max_timesteps": { "type": "integer" },
+    "git_ref": { "type": "string" },
+    "best_hud_time": { "type": "number", "description": "HUD seconds" },
+    "status": { "type": "string" },
+    "labels": { "type": "object", "additionalProperties": { "type": "string" } }
+  },
+  "additionalProperties": true
+}

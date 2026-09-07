@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://qwop-wr.local/schemas/fleet.json",
+  "title": "QWOP WR fleet state",
+  "type": "object",
+  "required": ["updated_at", "size"],
+  "properties": {
+    "updated_at": { "type": "string", "format": "date-time" },
+    "updated_by": { "type": "string" },
+    "desired": { "type": "integer" },
+    "size": { "type": "integer" },
+    "provisioning_model": { "type": "string" },
+    "machine_type": { "type": "string" },
+    "instances": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "zone": { "type": "string" },
+          "job_id": { "type": "string" },
+          "status": { "type": "string" }
+        }
+      }
+    }
+  },
+  "additionalProperties": true
+}

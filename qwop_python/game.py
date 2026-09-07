@@ -22,7 +22,9 @@ from .data import (
     CAMERA_VERTICAL_OFFSET,
     CAMERA_HORIZONTAL_OFFSET,
     INITIAL_CAMERA_X,
-    INITIAL_CAMERA_Y
+    INITIAL_CAMERA_Y,
+    SCORE_TIME_STEP,
+    HURDLES_ENABLED,
 )
 
 
@@ -40,7 +42,7 @@ class QWOPGame:
     The update loop sequence exactly matches QWOP_FUNCTIONS_EXACT.md lines 10-189.
     """
     
-    def __init__(self, seed=None, verbose=True, headless=False):
+    def __init__(self, seed=None, verbose=True, headless=False, hurdles_enabled=None):
         """
         Initialize QWOP game.
         
@@ -50,13 +52,21 @@ class QWOPGame:
         Args:
             seed: Optional seed for deterministic behavior (for RL compatibility)
             verbose: If True, print game events (default: True)
-            headless: If True, skip camera/speed tracking for faster training (default: False)
+            headless: If True, skip non-physics extras (speed audio buffer) for faster
+                training. Camera_x MUST still update — ground segment repositioning
+                depends on it. Skipping camera in headless stalls the track ~18m.
+            hurdles_enabled: If set, override data.HURDLES_ENABLED for this instance
         """
         self.verbose = verbose
         self.headless = headless
+        if hurdles_enabled is None:
+            hurdles_enabled = HURDLES_ENABLED
+        self.hurdles_enabled = bool(hurdles_enabled)
         
         # Core subsystems
-        self.physics = PhysicsWorld(verbose=verbose)
+        self.physics = PhysicsWorld(
+            verbose=verbose, hurdles_enabled=self.hurdles_enabled
+        )
         self.game_state = GameState()
         self.contact_listener = QWOPContactListener(self.game_state, verbose=verbose)
         self.controls = ControlsHandler(self.physics)
@@ -145,11 +155,14 @@ class QWOPGame:
         11. Game end check
         
         Args:
-            dt: Delta time in seconds (typically 1/60 = 0.0167s for 60 FPS)
+            dt: Ignored for the HUD clock. Real QWOP advances scoreTime by 1/30
+                per update while Box2D always steps 0.04; we match that drive.
+                Kept as an argument for call-site compatibility.
         """
-        # Step 1: Score time update
+        # Step 1: Score time update — HUD clock (JS scoreTime += 1/30), not
+        # PHYSICS_TIMESTEP. Physics still steps a fixed 0.04 below.
         if not self.pause and not self.game_state.game_ended:
-            self.score_time += dt
+            self.score_time += SCORE_TIME_STEP
         
         # Step 3: Floor repositioning (infinite scrolling)
         self._reposition_ground_segments()
@@ -161,8 +174,8 @@ class QWOPGame:
                 torque = HEAD_TORQUE_FACTOR * (head.angle + HEAD_TORQUE_OFFSET)
                 head.ApplyTorque(torque, True)
         
-        # Step 5: Speed tracking (rolling average for future audio)
-        # Skip in headless mode for performance
+        # Step 5: Speed tracking (rolling average for future audio / UI)
+        # Safe to skip in headless — not required for physics or ground scroll.
         if not self.headless:
             head = self.physics.get_body('head')
             if head is not None:
@@ -179,9 +192,11 @@ class QWOPGame:
             self.physics.step()
         
         # Step 9: Camera follow logic
-        # Skip in headless mode for performance
-        if not self.headless:
-            self._update_camera()
+        # ALWAYS update camera_x even when headless. _reposition_ground_segments()
+        # keys off camera_x; without it the track stops scrolling and the runner
+        # stalls around ~18m with no feet/track contact for further progress.
+        # camera_y is cheap and kept in sync for parity; no pygame blit/UI here.
+        self._update_camera()
         
         # Step 10: Score calculation (freeze when game ended to prevent shifting)
         if not self.game_state.jump_landed and not self.game_state.game_ended:

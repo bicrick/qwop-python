@@ -9,13 +9,17 @@ from .reward_shaping_wrapper import (
     VelocityIncentiveWrapper,
     ProgressiveVelocityIncentiveWrapper,
 )
+from .anti_scrape_wrapper import AntiScrapeCurriculumWrapper
 from .verbose_wrapper import VerboseWrapper
 from .record_wrapper import RecordWrapper
+from .stuck_detection_wrapper import StuckDetectionWrapper
 
 __all__ = [
     "RewardShapingWrapper",
     "VelocityIncentiveWrapper",
     "ProgressiveVelocityIncentiveWrapper",
+    "AntiScrapeCurriculumWrapper",
     "VerboseWrapper",
     "RecordWrapper",
+    "StuckDetectionWrapper",
 ]

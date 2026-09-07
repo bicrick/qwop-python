@@ -77,6 +77,12 @@ def run(action, cfg, cli_overrides=None):
         benchmark(steps=cfg.get("steps", 10000))
         return
 
+    if action == "evaluate":
+        ensure_sb3_installed()
+        from .evaluate import evaluate
+        evaluate(cfg)
+        return
+
     if action in ("train_bc", "train_gail", "train_airl"):
         print("Not implemented: %s" % action)
         sys.exit(1)
@@ -99,6 +105,7 @@ def run(action, cfg, cli_overrides=None):
                 "total_timesteps": cfg.get("total_timesteps", 1000000),
                 "max_episode_steps": cfg.get("max_episode_steps", 5000),
                 "n_checkpoints": cfg.get("n_checkpoints", 5),
+                "n_envs": cfg.get("n_envs", 1),
                 "learner_lr_schedule": cfg.get("learner_lr_schedule", "const_0.001"),
             }
         )
@@ -151,6 +158,7 @@ def run_bootstrap():
         "spectate.yml",
         "race.yml",
         "benchmark.yml",
+        "evaluate.yml",
         "train_ppo.yml",
         "train_qrdqn.yml",
         "train_a2c.yml",
@@ -180,6 +188,12 @@ def main():
     )
     parser.add_argument("--run-id", type=str, help="run id (train_*)")
     parser.add_argument(
+        "--max-timesteps",
+        type=int,
+        default=None,
+        help="override total_timesteps (train_* scout/short runs)",
+    )
+    parser.add_argument(
         "--obs",
         "--observation-panel",
         dest="observation_panel",
@@ -198,6 +212,7 @@ action:
   spectate          watch trained model play
   race              race two models side by side
   benchmark         measure env steps/sec
+  evaluate          headless HUD-time eval of a saved model (browser scoreTime)
   train_ppo         train using PPO
   train_ppo_5       train using PPO5 (success-only episode filtering)
   train_dqn         train using DQN
@@ -211,6 +226,7 @@ examples:
   %(prog)s -c config/record.yml play
   %(prog)s spectate
   %(prog)s race
+  %(prog)s -c config/eval_wr.yml evaluate
   %(prog)s train_ppo
 """
 
@@ -250,6 +266,9 @@ examples:
 
     if args.run_id is not None:
         cfg["run_id"] = args.run_id
+
+    if args.max_timesteps is not None:
+        cfg["total_timesteps"] = args.max_timesteps
 
     if args.action == "spectate" or (
         args.observation_panel and args.action in ("play", "record")

@@ -159,8 +159,8 @@ def _draw_race_panel(screen, x, y, name_a, name_b, stats, info_a=None, info_b=No
         d_b = info_b.get("distance", 0)
         t_a = info_a.get("time", 0)
         t_b = info_b.get("time", 0)
-        s_a = info_a.get("avgspeed", 0)
-        s_b = info_b.get("avgspeed", 0)
+        s_a = info_a.get("speed_mps", info_a.get("avgspeed", 0))
+        s_b = info_b.get("speed_mps", info_b.get("avgspeed", 0))
         _row("Distance", f"{d_a:.1f} m", f"{d_b:.1f} m")
         _row("Time", _to_time_str(t_a), _to_time_str(t_b))
         _row("Speed", f"{s_a:.1f} m/s", f"{s_b:.1f} m/s")
@@ -294,13 +294,17 @@ def race(cfg):
             if success_a:
                 stats["completes_a"] += 1
                 stats["completion_times_a"].append(info_a.get("time", 0))
-                stats["completion_speeds_a"].append(info_a.get("avgspeed", 0))
+                stats["completion_speeds_a"].append(
+                    info_a.get("speed_mps", info_a.get("avgspeed", 0))
+                )
             else:
                 stats["falls_a"] += 1
             if success_b:
                 stats["completes_b"] += 1
                 stats["completion_times_b"].append(info_b.get("time", 0))
-                stats["completion_speeds_b"].append(info_b.get("avgspeed", 0))
+                stats["completion_speeds_b"].append(
+                    info_b.get("speed_mps", info_b.get("avgspeed", 0))
+                )
             else:
                 stats["falls_b"] += 1
 
