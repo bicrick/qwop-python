@@ -14,7 +14,7 @@ This project reimplements the qwop-gym environment and tooling in pure Python, r
 
 * **Pure Python + Box2D** - No browser, WebGL, or chromedriver. Runs entirely in process.
 * **Headless by default** - Training uses no rendering; play, spectate, and replay use Pygame.
-* **Parallelization-ready** - Single-process training matches qwop-gym; parallel envs can be re-added later for higher throughput.
+* **Parallelization-ready** - `n_envs` uses `SubprocVecEnv` (DummyVecEnv fallback); see `doc/PARALLEL_SWEEPS.md` for multi-run CPU scouts.
 * **Same interface** - 60-dim observations, Discrete 9/16 actions, compatible reward model. Behavior matches qwop-gym.
 
 ## Install
@@ -141,7 +141,20 @@ qwop_python/           # Main package
   wrappers/            # VerboseWrapper, RecordWrapper
 config/                # YAML configs (created by bootstrap)
 data/                  # Models, logs, checkpoints, recordings
+scripts/               # Parallel sweep launcher + monitor
+doc/PARALLEL_SWEEPS.md # CPU-safe parallel scout experiments
 ```
+
+## Parallel scout sweeps
+
+On limited machines (e.g. 8 vCPU / 16GB), run 2–4 short experiments in parallel:
+
+```bash
+python scripts/sweep_parallel.py --builtin -n 2 --max-timesteps 200000
+python scripts/monitor_runs.py --latest
+```
+
+See [doc/PARALLEL_SWEEPS.md](doc/PARALLEL_SWEEPS.md). `n_envs` in train YAML is honored (`SubprocVecEnv`, with `DummyVecEnv` fallback).
 
 ## License
 

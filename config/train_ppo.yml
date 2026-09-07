@@ -22,6 +22,9 @@ total_timesteps: 100_000
 # [int] (optional) Force env termination on the Nth step of an episode
 max_episode_steps: 5000
 
+# [int] Parallel environments (SubprocVecEnv; DummyVecEnv fallback if spawn fails)
+n_envs: 1
+
 # [int] Number of times the model will be saved during training
 # Example: 5 means save at 20%, 40%, 60%, 80% and 100% progress
 n_checkpoints: 5
