@@ -27,7 +27,8 @@ class StuckDetectionWrapper(gymnasium.Wrapper):
     Args:
         env: Wrapped QWOP env
         patience_steps: Consecutive stuck steps required (default: 100)
-        min_speed_mps: Speed below this counts as "low velocity" (default: 0.05)
+        min_speed_mps: Speed below this counts as "low velocity" in m/s on the
+            HUD clock (info['speed_mps']; default: 0.05)
         flat_distance_m: Max metres gained over the patience window (default: 0.5)
         failure_cost: Extra reward penalty on stuck termination (default: None →
             use unwrapped.failure_cost if present, else 10.0)
