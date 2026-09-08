@@ -28,6 +28,7 @@ from stable_baselines3.common.utils import safe_mean
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 
 from . import common
+from .ep_info_metrics import mean_crossed_splits, mean_is_success, mean_optional_key
 from .gcs_artifacts import upload_artifact
 from .sb3_timesteps import format_learn_budget_log, resolve_learn_total_timesteps
 from ..callbacks import EpisodeSuccessFilterCallback, GcsCheckpointCallback
@@ -43,13 +44,14 @@ class LogCallback(BaseCallback):
         successful_eps = [ep for ep in ep_buffer if ep.get("is_success", 0)]
         for k in common.INFO_KEYS:
             if k == "is_success":
-                v = safe_mean([ep[k] for ep in ep_buffer])
+                v = mean_is_success(ep_buffer, safe_mean)
             elif k.startswith("split_") and k.endswith("_time"):
                 # -1.0 means mark not reached; average only crossed splits
-                crossed = [ep[k] for ep in ep_buffer if ep.get(k, -1.0) >= 0.0]
-                v = safe_mean(crossed) if crossed else float("nan")
+                v = mean_crossed_splits(ep_buffer, k, safe_mean)
             else:
-                v = safe_mean([ep[k] for ep in successful_eps])
+                # Successful eps from older demos / transfers may omit optional
+                # metrics (e.g. speed_mps); average only keys that are present.
+                v = mean_optional_key(successful_eps, k, safe_mean)
             self.model.logger.record(f"user/{k}", v)
         return True
 
