@@ -51,12 +51,23 @@ near-zero scrape penalties so extension does not fight Phase A anti-scrape.
 
 ---
 
-## Experiment C — Expert demo DQfD mix (planned)
+## Experiment C — Expert demo bootstrap (record → BC → WR from scratch)
 
-**Idea:** Mix expert demonstration transitions into the replay buffer
-(DQfD / demo-augmented QRDQN) to bootstrap a non-scraping gait faster than
-from scratch. Needs demo collection (`record` / expert eval) plus a
-demo-aware learner config — not implemented in this pass.
+**Idea:** Use an expert checkpoint **only** to write demonstration `.rec`
+files, behavioral-clone a policy, then keep WR QRDQN from-scratch (no expert
+as `model_load_file`). Optional PPO finetune from `ppo_warmup.zip`.
+
+**Implemented:** see [`doc/DEMO_BOOTSTRAP.md`](DEMO_BOOTSTRAP.md).
+
+| Step | Command / config |
+|------|------------------|
+| Record | `qwop-python record_model` (`config/record_model.yml`) |
+| BC | `qwop-python train_bc` (`config/train_bc.yml`) |
+| WR scout | `config/sweeps/scout_qrdqn_wr_from_scratch.yml` (`model_load_file: ~`) |
+| Phase A long | `config/train_qrdqn_wr_phase_a_long.yml` (16M, `n_envs: 4`) |
+
+DQfD / demo-augmented replay for QRDQN remains future work; this pass is the
+Liao-style demo bootstrap without contaminating WR checkpoints.
 
 ---
 
@@ -88,6 +99,6 @@ Split metrics (always present; `-1.0` until the mark is crossed):
 1. **A** Phase A until upright ≥20m is routine  
 2. **A** Phase B velocity fine-tune  
 3. **B** extended-knee bonus if gait stays too crouched  
-4. **C** demos if learning from scratch stays stuck  
+4. **C** demo bootstrap (`record_model` → `train_bc`) if from-scratch stalls; keep WR QRDQN from-scratch  
 5. **D** confirm fps=4 vs 2 for the best Phase B checkpoint  
 6. **E** mid-race / hurdle split optimization toward sub-45.530s

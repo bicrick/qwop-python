@@ -23,11 +23,18 @@ from . import common
 
 def load_model(mod_name, cls_name, file):
     print("Loading %s model from %s" % (cls_name, file))
-    mod = importlib.import_module(mod_name)
 
     if cls_name == "BC":
-        return mod.reconstruct_policy(file)
+        # Prefer local reconstruct (torch.save of ActorCriticPolicy).
+        try:
+            from .train_bc import reconstruct_policy
 
+            return reconstruct_policy(file)
+        except Exception:
+            mod = importlib.import_module(mod_name)
+            return mod.reconstruct_policy(file)
+
+    mod = importlib.import_module(mod_name)
     return getattr(mod, cls_name).load(file)
 
 

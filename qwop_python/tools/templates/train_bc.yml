@@ -1,0 +1,19 @@
+---
+seed: ~
+run_id: ~
+recordings:
+  - "data/recordings/*.rec"
+out_dir_template: "data/BC-{run_id}"
+log_tensorboard: true
+n_epochs: 50
+save_ppo_warmup: true
+learner_kwargs:
+  batch_size: 32
+  minibatch_size: ~
+  ent_weight: 0.001
+  l2_weight: 0.0
+env_kwargs:
+  __include__: "config/env.yml"
+  frames_per_step: 4
+  reduced_action_set: true
+env_wrappers: []

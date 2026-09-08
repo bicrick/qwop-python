@@ -1,0 +1,68 @@
+---
+# WR Experiment A — Phase A long / parallel no-demo baseline
+#
+# From-scratch QRDQN (no model_load_file, no expert zip). Use this as the
+# no-demo baseline against Liao-style BC bootstrap (see doc/DEMO_BOOTSTRAP.md).
+#
+#   qwop-python train_qrdqn -c config/train_qrdqn_wr_phase_a_long.yml
+#
+# Notes:
+#   - 16M+ env steps with n_envs>=4 for throughput
+#   - Same anti-scrape curriculum as train_qrdqn_wr_phase_a.yml
+#   - Do NOT point model_load_file at expert_dqnfd.zip
+
+seed: ~
+run_id: ~
+model_load_file: ~
+
+out_dir_template: "data/QRDQN-WR-PhaseA-Long-{run_id}"
+log_tensorboard: true
+
+total_timesteps: 16_000_000
+max_episode_steps: 1000
+n_checkpoints: 32
+n_envs: 4
+
+learner_kwargs:
+  policy: "MlpPolicy"
+  buffer_size: 100000
+  learning_starts: 100000
+  batch_size: 64
+  tau: 1.0
+  gamma: 0.997
+  train_freq: 4
+  gradient_steps: 1
+  target_update_interval: 512
+  exploration_fraction: 0.3
+  exploration_initial_eps: 0.2
+  exploration_final_eps: 0
+
+learner_lr_schedule: "const_0.001"
+
+env_kwargs:
+  __include__: "config/env.yml"
+  frames_per_step: 4
+  reduced_action_set: true
+  text_in_browser: "WR Phase A long parallel baseline (no demos)..."
+
+env_wrappers:
+  - module: "qwop_python.wrappers.anti_scrape_wrapper"
+    cls: "AntiScrapeCurriculumWrapper"
+    kwargs:
+      velocity_weight: 0.5
+      height_weight: 0.25
+      height_floor: 1.2
+      scrape_weight: 0.6
+      scrape_torso_max_height: 1.0
+      scrape_flexion_min: 0.45
+      knee_flex_weight: 0.05
+      knee_extension_bonus_weight: 0.0
+      anneal_penalties: true
+      initial_scrape_weight: 0.6
+      final_scrape_weight: 0.15
+      initial_knee_flex_weight: 0.05
+      final_knee_flex_weight: 0.01
+      initial_height_weight: 0.25
+      final_height_weight: 0.1
+      anneal_hold_fraction: 0.2
+      anneal_ramp_fraction: 0.9

@@ -83,8 +83,52 @@ def run(action, cfg, cli_overrides=None):
         evaluate(cfg)
         return
 
-    if action in ("train_bc", "train_gail", "train_airl"):
-        print("Not implemented: %s" % action)
+    if action == "record_model":
+        ensure_sb3_installed()
+        from .record_model import record_model
+
+        record_model(
+            model_file=cfg["model_file"],
+            model_mod=cfg.get("model_mod", "sb3_contrib"),
+            model_cls=cfg.get("model_cls", "QRDQN"),
+            n_episodes=cfg.get("n_episodes", 20),
+            max_episode_steps=cfg.get("max_episode_steps", 2000),
+            seed=cfg.get("seed") or common.gen_seed(),
+            deterministic=cfg.get("deterministic", True),
+            rec_file=cfg.get("rec_file"),
+        )
+        return
+
+    if action == "train_bc":
+        ensure_sb3_installed()
+        ensure_imitation_optional()
+        from .train_bc import train_bc
+
+        run_config = {
+            "seed": cfg.get("seed") or common.gen_seed(),
+            "run_id": cfg.get("run_id") or common.gen_id(),
+            "n_epochs": cfg.get("n_epochs", 50),
+            "recordings": cfg.get("recordings", ["data/recordings/*.rec"]),
+            "out_dir_template": cfg.get("out_dir_template", "data/BC-{run_id}"),
+            "learner_kwargs": cfg.get("learner_kwargs", {}),
+            "log_tensorboard": cfg.get("log_tensorboard", False),
+            "save_ppo_warmup": cfg.get("save_ppo_warmup", True),
+        }
+        run_duration, run_values = common.measure(train_bc, run_config)
+        common.save_run_metadata(
+            action=action,
+            cfg=dict(run_config, env_kwargs=env_kwargs),
+            duration=run_duration,
+            values=dict(run_values, env=expanded_env_kwargs),
+        )
+        return
+
+    if action in ("train_gail", "train_airl"):
+        print(
+            "Not implemented: %s (use train_bc for demo bootstrap; "
+            "GAIL/AIRL still pending)"
+            % action
+        )
         sys.exit(1)
 
     if action in ("train_a2c", "train_ppo", "train_ppo_5", "train_dqn", "train_qrdqn", "train_rppo"):
@@ -151,6 +195,21 @@ Or install qwop-python with the sb3 extra:
         sys.exit(1)
 
 
+def ensure_imitation_optional():
+    """Prefer imitation BC; train_bc falls back to minimal BC if missing."""
+    try:
+        import imitation  # noqa: F401
+
+        print("imitation %s available for train_bc" % getattr(imitation, "__version__", "?"))
+    except ImportError:
+        print(
+            "imitation not installed — train_bc will use minimal supervised BC.\n"
+            "Optional: pip install 'imitation>=1.0'  "
+            "(note: imitation pins SB3~=2.2; project uses SB3 2.9 — "
+            "imitation may still import, or use the built-in fallback)."
+        )
+
+
 def run_bootstrap():
     """Create config/ in CWD with templates from the package."""
     config_dir = os.path.join(os.getcwd(), "config")
@@ -169,6 +228,8 @@ def run_bootstrap():
         "train_a2c.yml",
         "train_dqn.yml",
         "train_rppo.yml",
+        "record_model.yml",
+        "train_bc.yml",
     )
     pkg = importlib.resources.files("qwop_python.tools.templates")
     for name in templates:
@@ -216,11 +277,13 @@ action:
   bootstrap         create config/ with templates
   play              interactive gameplay
   record            play with recording (-c config/record.yml)
+  record_model      headlessly roll out a SB3 model into .rec demos
   replay            replay recorded actions
   spectate          watch trained model play
   race              race two models side by side
   benchmark         measure env steps/sec
   evaluate          headless HUD-time eval of a saved model (browser scoreTime)
+  train_bc          behavioral cloning from .rec demos (imitation or minimal)
   train_ppo         train using PPO
   train_ppo_5       train using PPO5 (success-only episode filtering)
   train_dqn         train using DQN
@@ -232,6 +295,8 @@ examples:
   %(prog)s bootstrap
   %(prog)s play
   %(prog)s -c config/record.yml play
+  %(prog)s record_model
+  %(prog)s train_bc
   %(prog)s spectate
   %(prog)s race
   %(prog)s -c config/eval_wr.yml evaluate

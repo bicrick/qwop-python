@@ -1,0 +1,57 @@
+---
+# WR scout: from-scratch QRDQN after BC demo bootstrap.
+#
+# Intentionally has NO model_load_file — do not warm-start from
+# expert_dqnfd.zip. Use demos only via record_model -> train_bc; this scout
+# measures whether from-scratch QRDQN still learns with the same env recipe.
+#
+#   qwop-python train_qrdqn -c config/sweeps/scout_qrdqn_wr_from_scratch.yml
+#   qwop-python train_qrdqn -c config/sweeps/scout_qrdqn_wr_from_scratch.yml --max-timesteps 100000
+
+seed: ~
+run_id: ~
+model_load_file: ~
+
+out_dir_template: "data/scout-qrdqn-wr-scratch-{run_id}"
+log_tensorboard: true
+
+total_timesteps: 200_000
+max_episode_steps: 1000
+n_checkpoints: 2
+n_envs: 1
+
+learner_kwargs:
+  policy: "MlpPolicy"
+  buffer_size: 50000
+  learning_starts: 5000
+  batch_size: 64
+  tau: 1.0
+  gamma: 0.997
+  train_freq: 4
+  gradient_steps: 1
+  target_update_interval: 512
+  exploration_fraction: 0.3
+  exploration_initial_eps: 0.2
+  exploration_final_eps: 0.05
+
+learner_lr_schedule: "const_0.001"
+
+env_kwargs:
+  __include__: "config/env.yml"
+  frames_per_step: 4
+  reduced_action_set: true
+
+# Light anti-scrape so scout matches Phase A spirit without full anneal cost.
+env_wrappers:
+  - module: "qwop_python.wrappers.anti_scrape_wrapper"
+    cls: "AntiScrapeCurriculumWrapper"
+    kwargs:
+      velocity_weight: 0.5
+      height_weight: 0.25
+      height_floor: 1.2
+      scrape_weight: 0.6
+      scrape_torso_max_height: 1.0
+      scrape_flexion_min: 0.45
+      knee_flex_weight: 0.05
+      knee_extension_bonus_weight: 0.0
+      anneal_penalties: false

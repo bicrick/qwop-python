@@ -25,6 +25,11 @@ sb3 = [
     "tqdm",
     "rich",
 ]
+# Optional BC via HumanCompatibleAI/imitation. Declares SB3~=2.2 which conflicts
+# with sb3-contrib 2.9; train_bc falls back to minimal BC if import fails.
+imitation = [
+    "imitation >= 1.0",
+]
 
 [project.scripts]
 "qwop-python" = "qwop_python.tools.main:main"
