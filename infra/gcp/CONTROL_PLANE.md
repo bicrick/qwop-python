@@ -82,6 +82,10 @@ python scripts/wr_dashboard.py --port 8787 \
 - heartbeat → `metrics/runs/<job_id>/heartbeat.json`
 - artifacts → `artifacts/runs/<job_id>/`
 
+`startup.sh` exports `QWOP_GCS_ARTIFACT_PREFIX` to that artifacts prefix so
+`train_sb3` uploads each `model_*_steps.zip` (and final `model.zip`) mid-run.
+End-of-job `sync_artifacts` remains as a full `data/` catch-up.
+
 Optional metadata `train-action` (e.g. `train_qrdqn`) overrides filename
 inference. Inference matches `*qrdqn*` before `*dqn*` so
 `scout_qrdqn_phase_a.yml` does not become `train_dqn`.
