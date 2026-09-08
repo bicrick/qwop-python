@@ -26,7 +26,7 @@ model_load_file: "data/QRDQN-WR-PhaseA-REPLACE_ME/model.zip"
 out_dir_template: "data/QRDQN-WR-PhaseB-{run_id}"
 log_tensorboard: true
 
-total_timesteps: 16_000_000
+total_timesteps: 16_000_000  # additional steps this run (added to loaded num_timesteps)
 max_episode_steps: 1000
 n_checkpoints: 40
 n_envs: 1
