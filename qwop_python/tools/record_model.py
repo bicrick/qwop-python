@@ -127,9 +127,7 @@ def record_model(
             if ep < int(n_episodes):
                 obs, _info = env.reset()
     finally:
-        close = getattr(recorder, "close", None)
-        if callable(close):
-            close()
+        # Wrapper.close flushes the .rec handle then closes the env chain.
         env.close()
 
     out_path = getattr(recorder, "rec_file", None)

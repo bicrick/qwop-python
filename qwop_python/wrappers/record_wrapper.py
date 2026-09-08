@@ -109,4 +109,6 @@ class RecordWrapper(gym.Wrapper):
                 self.handle.close()
             finally:
                 self.handle = None
-        return self.env.close()
+        env = getattr(self, "env", None)
+        if env is not None:
+            return env.close()
