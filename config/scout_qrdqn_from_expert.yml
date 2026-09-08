@@ -1,0 +1,51 @@
+---
+# Farm scout: fine-tune QRDQN from the shipped expert checkpoint.
+#
+# Loads data/saved_models/expert_dqnfd.zip and trains ~1M *additional* env
+# steps (train_sb3 / PR #5 treat total_timesteps as an additional budget).
+# Tiny LR keeps updates gentle on the expert policy.
+#
+#   qwop-python train_qrdqn -c config/scout_qrdqn_from_expert.yml
+#
+# Env timing matches spectate_expert_dqnfd.yml (frames_per_step=1) so the
+# discrete action duration matches the expert's MDP. reduced_action_set must
+# stay true (expert was trained with Discrete(9)).
+
+seed: ~
+run_id: ~
+model_load_file: "data/saved_models/expert_dqnfd.zip"
+
+out_dir_template: "data/scout-qrdqn-from-expert-{run_id}"
+log_tensorboard: true
+
+# Additional fine-tune budget (not absolute SB3 counter)
+total_timesteps: 1_000_000
+max_episode_steps: 1000
+n_checkpoints: 10
+n_envs: 1
+
+learner_kwargs:
+  policy: "MlpPolicy"
+  buffer_size: 100000
+  learning_starts: 10000
+  batch_size: 64
+  tau: 1.0
+  gamma: 0.997
+  train_freq: 4
+  gradient_steps: 1
+  target_update_interval: 512
+  exploration_fraction: 0.15
+  exploration_initial_eps: 0.05
+  exploration_final_eps: 0
+
+# Tiny LR vs Phase A const_0.001 / Phase B const_0.0005
+learner_lr_schedule: "const_0.0001"
+
+env_kwargs:
+  __include__: "config/env.yml"
+  frames_per_step: 1
+  reduced_action_set: true
+  text_in_browser: "Scout: fine-tune from expert_dqnfd..."
+
+# Preserve base env reward — do not invent a new shaping scheme for fine-tune.
+env_wrappers: []
