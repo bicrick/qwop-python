@@ -93,6 +93,9 @@ ART_GCS="${METRICS_BUCKET}/artifacts/runs/${JOB_ID}/"
 VENV="${WORK_ROOT}/venv"
 LOG="${WORK_ROOT}/train.log"
 
+# Mid-run checkpoint uploads (train_sb3 GcsCheckpointCallback). Unset → local-only.
+export QWOP_GCS_ARTIFACT_PREFIX="${ART_GCS}"
+
 mkdir -p "$WORK_ROOT" "$METRICS_DIR" "$ART_DIR"
 exec > >(tee -a "$LOG") 2>&1
 
