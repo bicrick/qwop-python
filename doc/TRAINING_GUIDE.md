@@ -71,9 +71,10 @@ Training is controlled via YAML config files. See `config/train_qrdqn.yml` for a
 - `time_cost_mult: 10.0` - Time penalty weight
 
 **Training:**
-- `total_timesteps: 5_000_000` - Total training steps
+- `total_timesteps: 5_000_000` - Additional training steps for this run (fine-tunes add this to the loaded checkpoint's `num_timesteps`; see `qwop_python/tools/sb3_timesteps.py`)
 - `n_envs: 4` - Number of parallel environments
 - `max_episode_steps: 1000` - Episode truncation limit
+- `reset_num_timesteps: false` - Keep loaded timestep counter (default). Set true only if you intentionally want SB3 to reset the counter.
 
 **QRDQN Hyperparameters:**
 - `buffer_size: 100_000` - Replay buffer capacity

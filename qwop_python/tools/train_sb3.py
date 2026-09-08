@@ -28,6 +28,7 @@ from stable_baselines3.common.utils import safe_mean
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 
 from . import common
+from .sb3_timesteps import format_learn_budget_log, resolve_learn_total_timesteps
 from ..callbacks import EpisodeSuccessFilterCallback
 from ..learners import PPOSuccessFilter
 
@@ -58,12 +59,17 @@ class VelocityRewardSchedulerCallback(BaseCallback):
     Updates wrappers that expose set_progress(progress_remaining):
     - ProgressiveVelocityIncentiveWrapper
     - AntiScrapeCurriculumWrapper (when anneal_penalties=True)
+
+    Progress is measured over the *current run* window
+    [start_timesteps, end_timesteps), not the model's lifetime counter.
+    That keeps fine-tunes (large loaded num_timesteps) annealing correctly.
     """
 
-    def __init__(self, venv, total_timesteps):
+    def __init__(self, venv, end_timesteps, start_timesteps=0):
         super().__init__()
         self.venv = venv
-        self.total_timesteps = total_timesteps
+        self.start_timesteps = int(start_timesteps)
+        self.end_timesteps = int(end_timesteps)
         self._wrappers, self._use_env_method = self._resolve_update_path()
 
     def _resolve_update_path(self):
@@ -90,10 +96,15 @@ class VelocityRewardSchedulerCallback(BaseCallback):
                 cur = getattr(cur, "env", None)
         return wrappers, False
 
+    def _progress_remaining(self) -> float:
+        span = max(1, self.end_timesteps - self.start_timesteps)
+        done = self.model.num_timesteps - self.start_timesteps
+        return 1.0 - (done / span)
+
     def _on_step(self) -> bool:
         if not self._wrappers and not self._use_env_method:
             return True
-        progress_remaining = 1.0 - (self.model.num_timesteps / self.total_timesteps)
+        progress_remaining = self._progress_remaining()
         if self._use_env_method:
             try:
                 self.venv.env_method("set_progress", progress_remaining)
@@ -198,7 +209,15 @@ def train_sb3(
     out_dir_template,
     log_tensorboard,
     n_envs=1,
+    reset_num_timesteps=False,
 ):
+    """Train (or fine-tune) an SB3 / sb3-contrib algorithm.
+
+    ``total_timesteps`` is always the *additional* step budget for this run
+    (same semantics as ``--max-timesteps``). With the default
+    ``reset_num_timesteps=False``, SB3's learn() uses an absolute counter, so
+    we pass ``model.num_timesteps + total_timesteps`` (see sb3_timesteps).
+    """
     venv = create_vec_env(seed, max_episode_steps, n_envs=n_envs)
 
     try:
@@ -216,8 +235,30 @@ def train_sb3(
             out_dir=out_dir,
         )
 
+        requested_additional = int(total_timesteps)
+        loaded_num_timesteps = int(getattr(model, "num_timesteps", 0) or 0)
+        # After reset_num_timesteps=True, SB3 zeros the counter at learn() start.
+        schedule_start = 0 if reset_num_timesteps else loaded_num_timesteps
+        learn_total = resolve_learn_total_timesteps(
+            requested_additional,
+            loaded_num_timesteps,
+            reset_num_timesteps=reset_num_timesteps,
+        )
+        print(
+            format_learn_budget_log(
+                loaded_num_timesteps=loaded_num_timesteps,
+                requested_additional=requested_additional,
+                reset_num_timesteps=reset_num_timesteps,
+                learn_total_timesteps=learn_total,
+            ),
+            flush=True,
+        )
+
         # CheckpointCallback save_freq is in steps *per env* for VecEnv.
-        save_freq = max(1, math.ceil(total_timesteps / (n_checkpoints * venv.num_envs)))
+        # Space checkpoints across this run's *additional* budget.
+        save_freq = max(
+            1, math.ceil(requested_additional / (n_checkpoints * venv.num_envs))
+        )
         callbacks = [
             LogCallback(),
             CheckpointCallback(
@@ -228,13 +269,17 @@ def train_sb3(
         ]
         if learner_cls == "PPO5":
             callbacks.insert(0, EpisodeSuccessFilterCallback())
-        scheduler = VelocityRewardSchedulerCallback(venv, total_timesteps)
+        scheduler = VelocityRewardSchedulerCallback(
+            venv,
+            end_timesteps=learn_total,
+            start_timesteps=schedule_start,
+        )
         if scheduler._wrappers or scheduler._use_env_method:
             callbacks.append(scheduler)
 
         model.learn(
-            total_timesteps=total_timesteps,
-            reset_num_timesteps=False,
+            total_timesteps=learn_total,
+            reset_num_timesteps=reset_num_timesteps,
             progress_bar=True,
             callback=callbacks,
         )

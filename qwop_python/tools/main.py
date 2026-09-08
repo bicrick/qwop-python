@@ -102,11 +102,16 @@ def run(action, cfg, cli_overrides=None):
                 "out_dir_template": cfg.get("out_dir_template", default_template),
                 "log_tensorboard": cfg.get("log_tensorboard", False),
                 "learner_kwargs": cfg.get("learner_kwargs", {}),
+                # Additional env steps for this run (not an absolute SB3 counter).
                 "total_timesteps": cfg.get("total_timesteps", 1000000),
                 "max_episode_steps": cfg.get("max_episode_steps", 5000),
                 "n_checkpoints": cfg.get("n_checkpoints", 5),
                 "n_envs": cfg.get("n_envs", 1),
                 "learner_lr_schedule": cfg.get("learner_lr_schedule", "const_0.001"),
+                # False (default): keep loaded num_timesteps; learn() target is
+                # num_timesteps + total_timesteps. True: reset counter and train
+                # total_timesteps from zero (breaks TB continuity).
+                "reset_num_timesteps": bool(cfg.get("reset_num_timesteps", False)),
             }
         )
 
@@ -191,7 +196,10 @@ def main():
         "--max-timesteps",
         type=int,
         default=None,
-        help="override total_timesteps (train_* scout/short runs)",
+        help=(
+            "override total_timesteps: additional env steps for this run "
+            "(train_* scout/fine-tune; not an absolute SB3 counter)"
+        ),
     )
     parser.add_argument(
         "--obs",
