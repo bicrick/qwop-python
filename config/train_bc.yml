@@ -1,27 +1,34 @@
 ---
-# [int] (optional) Env seed (auto-generated if blank)
-seed: ~
+# Behavioral cloning from .rec demonstrations (Liao-style demo bootstrap).
+#
+# Prerequisites:
+#   1. qwop-python record_model   # writes data/recordings/*.rec
+#   2. pip install "imitation>=1.0"  # optional; minimal BC fallback exists
+#
+#   qwop-python train_bc
+#
+# Outputs under data/BC-{run_id}/:
+#   model.zip       — ActorCriticPolicy (spectate with model_cls: BC)
+#   ppo_warmup.zip  — PPO zip for on-policy RL finetune via model_load_file
+#
+# Do NOT use expert_dqnfd.zip as WR QRDQN model_load_file. Expert is only for
+# generating .rec demos. WR QRDQN scout / Phase A stay from-scratch.
 
-# [string] (optional) Unique ID of this run (auto-generated if blank)
+seed: ~
 run_id: ~
 
-# [List<string>] List of paths for the recordings to train with
-# Glob patterns are supported, eg. "data/recordings/*.rec"
 recordings:
-  - "data/recordings/1syeor3a-12000000.rec"
+  - "data/recordings/*.rec"
 
-# [string] Directory template to save the trained model, metadata and
-# tensorboard logs. If the template contains {run_id} or {seed} placeholders,
-# they will be replaced with the corresponding runtime values.
 out_dir_template: "data/BC-{run_id}"
-
-# [bool] Log tensorboard data
 log_tensorboard: true
 
-# [int] Training duration
-n_epochs: 500
+# Short default for smoke tests; raise for real bootstrap (e.g. 200–500).
+n_epochs: 50
 
-# BC algorithm parameters
+# Write ppo_warmup.zip for PPO finetune (optional).
+save_ppo_warmup: true
+
 # https://imitation.readthedocs.io/en/latest/algorithms/bc.html#api
 learner_kwargs:
   batch_size: 32
@@ -29,16 +36,10 @@ learner_kwargs:
   ent_weight: 0.001
   l2_weight: 0.0
 
-# Env parameters
-# The special "__include__" key allows to load them from another file.
-# Keys listed here take precedence over keys loaded with __include__.
-# See notes in `env.yml` for more info
+# Must match the env used when recording demos (record_model.yml).
 env_kwargs:
   __include__: "config/env.yml"
   frames_per_step: 4
-  reduced_action_set: false
-  text_in_browser: "Do not close this window, training in progress..."
+  reduced_action_set: true
 
-# List of gym wrappers to use for the env
-# Each list element must be a dict with "module", "cls" and "kwargs" keys
 env_wrappers: []

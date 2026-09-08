@@ -1,0 +1,19 @@
+---
+# Spectate a BC policy produced by train_bc (model.zip).
+fps: 60
+reset_delay: 1
+steps_per_step: 1
+
+model_file: "data/BC-REPLACE_ME/model.zip"
+model_mod: "qwop_python.tools.train_bc"
+model_cls: "BC"
+
+env_kwargs:
+  __include__: "config/env.yml"
+  frames_per_step: 4
+  reduced_action_set: true
+  render_mode: "human"
+
+env_wrappers:
+  - module: "qwop_python"
+    cls: "VerboseWrapper"

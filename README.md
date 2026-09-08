@@ -66,6 +66,8 @@ action:
   spectate       watch trained model play
   benchmark      measure env steps/sec
   evaluate       headless HUD-time eval of a saved model
+  record_model   headlessly roll out a model into .rec demos
+  train_bc       behavioral cloning from .rec demos
   train_ppo      train using PPO
   train_dqn      train using DQN
   train_qrdqn    train using QRDQN
@@ -86,6 +88,20 @@ Record your own gameplay:
 ```bash
 qwop-python -c config/record.yml play
 ```
+
+Headlessly record a saved model into `.rec` demos (expert zip for demos only):
+
+```bash
+qwop-python record_model
+```
+
+Behavioral cloning from recordings (then optional PPO finetune; WR QRDQN stays from-scratch):
+
+```bash
+qwop-python train_bc
+```
+
+See [`doc/DEMO_BOOTSTRAP.md`](doc/DEMO_BOOTSTRAP.md).
 
 Train a PPO agent (edit `config/train_ppo.yml` if needed):
 
