@@ -22,16 +22,18 @@ import sb3_contrib
 import stable_baselines3
 from gymnasium.wrappers import TimeLimit
 from stable_baselines3.common import logger
-from stable_baselines3.common.callbacks import BaseCallback, CheckpointCallback
+from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.utils import safe_mean
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 
 from . import common
 from .ep_info_metrics import mean_crossed_splits, mean_is_success, mean_optional_key
+from .gcs_artifacts import upload_artifact
 from .sb3_timesteps import format_learn_budget_log, resolve_learn_total_timesteps
-from ..callbacks import EpisodeSuccessFilterCallback
+from ..callbacks import EpisodeSuccessFilterCallback, GcsCheckpointCallback
 from ..learners import PPOSuccessFilter
+
 
 
 class LogCallback(BaseCallback):
@@ -258,12 +260,14 @@ def train_sb3(
 
         # CheckpointCallback save_freq is in steps *per env* for VecEnv.
         # Space checkpoints across this run's *additional* budget.
+        # GcsCheckpointCallback also uploads each .zip when
+        # QWOP_GCS_ARTIFACT_PREFIX is set (no-op locally when unset).
         save_freq = max(
             1, math.ceil(requested_additional / (n_checkpoints * venv.num_envs))
         )
         callbacks = [
             LogCallback(),
-            CheckpointCallback(
+            GcsCheckpointCallback(
                 save_freq=save_freq,
                 save_path=out_dir,
                 name_prefix="model",
@@ -287,6 +291,8 @@ def train_sb3(
         )
 
         common.save_model(out_dir, model)
+        # Final model.zip — same optional mid/end GCS hook as periodic ckpts.
+        upload_artifact(os.path.join(out_dir, "model.zip"))
 
         return {"out_dir": out_dir}
     finally:
