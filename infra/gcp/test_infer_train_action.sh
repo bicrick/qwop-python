@@ -37,7 +37,7 @@ assert_eq() {
 }
 
 assert_eq "$(infer_train_action config/sweeps/scout_qrdqn.yml)" train_qrdqn "qrdqn before dqn"
-assert_eq "$(infer_train_action config/sweeps/scout_qrdqn_phase_a.yml)" train_qrdqn "qrdqn_phase_a"
+assert_eq "$(infer_train_action config/scout_qrdqn_phase_a.yml)" train_qrdqn "qrdqn_phase_a"
 assert_eq "$(infer_train_action config/train_dqn.yml)" train_dqn "plain dqn"
 assert_eq "$(infer_train_action config/sweeps/scout_ppo_fps2.yml)" train_ppo "ppo"
 assert_eq "$(infer_train_action config/train_rppo.yml)" train_rppo "rppo before ppo"

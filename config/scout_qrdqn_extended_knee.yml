@@ -1,0 +1,66 @@
+---
+# Farm scout: Exp B extended-knee shaping on a Phase A-style curriculum.
+#
+# Same AntiScrapeCurriculumWrapper recipe as Phase A, with
+# knee_extension_bonus_weight enabled (scaffold was 0.0 in Phase A/B YAMLs).
+# Near-default scrape weights kept so this can run from scratch as a farm job;
+# raise/lower the bonus without inventing a new reward family.
+#
+#   qwop-python train_qrdqn -c config/scout_qrdqn_extended_knee.yml
+
+seed: ~
+run_id: ~
+model_load_file: ~
+
+out_dir_template: "data/scout-qrdqn-extended-knee-{run_id}"
+log_tensorboard: true
+
+total_timesteps: 16_000_000
+max_episode_steps: 1000
+n_checkpoints: 32
+n_envs: 1
+
+learner_kwargs:
+  policy: "MlpPolicy"
+  buffer_size: 100000
+  learning_starts: 100000
+  batch_size: 64
+  tau: 1.0
+  gamma: 0.997
+  train_freq: 4
+  gradient_steps: 1
+  target_update_interval: 512
+  exploration_fraction: 0.3
+  exploration_initial_eps: 0.2
+  exploration_final_eps: 0
+
+learner_lr_schedule: "const_0.001"
+
+env_kwargs:
+  __include__: "config/env.yml"
+  frames_per_step: 4
+  reduced_action_set: true
+  text_in_browser: "Scout Exp B: extended-knee shaping..."
+
+env_wrappers:
+  - module: "qwop_python.wrappers.anti_scrape_wrapper"
+    cls: "AntiScrapeCurriculumWrapper"
+    kwargs:
+      velocity_weight: 0.5
+      height_weight: 0.25
+      height_floor: 1.2
+      scrape_weight: 0.6
+      scrape_torso_max_height: 1.0
+      scrape_flexion_min: 0.45
+      knee_flex_weight: 0.05
+      # Exp B: reward knees near upper joint limit (see anti_scrape_wrapper)
+      knee_extension_bonus_weight: 0.15
+      anneal_penalties: true
+      initial_scrape_weight: 0.6
+      final_scrape_weight: 0.15
+      initial_knee_flex_weight: 0.05
+      final_knee_flex_weight: 0.01
+      initial_height_weight: 0.25
+      final_height_weight: 0.1
+      anneal_hold_fraction: 0.2
+      anneal_ramp_fraction: 0.9

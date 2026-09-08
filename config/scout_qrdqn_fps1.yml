@@ -1,0 +1,38 @@
+---
+# Farm scout: short QRDQN with frames_per_step=1 (fine control ablation).
+# Mirrors config/sweeps/scout_qrdqn.yml recipe at fps=1.
+#
+#   qwop-python train_qrdqn -c config/scout_qrdqn_fps1.yml
+
+seed: ~
+run_id: ~
+model_load_file: ~
+out_dir_template: "data/scout-qrdqn-fps1-{run_id}"
+log_tensorboard: true
+total_timesteps: 200_000
+max_episode_steps: 1000
+n_checkpoints: 2
+n_envs: 1
+
+learner_kwargs:
+  policy: "MlpPolicy"
+  buffer_size: 50000
+  learning_starts: 5000
+  batch_size: 64
+  tau: 1.0
+  gamma: 0.995
+  train_freq: 4
+  gradient_steps: 1
+  target_update_interval: 500
+  exploration_fraction: 0.3
+  exploration_initial_eps: 0.2
+  exploration_final_eps: 0.05
+
+learner_lr_schedule: "const_0.001"
+
+env_kwargs:
+  __include__: "config/env.yml"
+  frames_per_step: 1
+  reduced_action_set: true
+
+env_wrappers: []
