@@ -16,6 +16,7 @@ This project reimplements the qwop-gym environment and tooling in pure Python, r
 * **Headless by default** - Training uses no rendering; play, spectate, and replay use Pygame.
 * **Parallelization-ready** - `n_envs` uses `SubprocVecEnv` (DummyVecEnv fallback); see `doc/PARALLEL_SWEEPS.md` for multi-run CPU scouts.
 * **Same interface** - 60-dim observations, Discrete 9/16 actions, compatible reward model. Behavior matches qwop-gym.
+* **Spawn settle** - Episodes start planted at rest (`settle_spawn`, default on). Both this Box2D port and browser QWOP spawn with feet floating; a short keys-up settle before the first action reduces free-fall/contact divergence on sim-to-real transfer. Race clocks stay `PHYSICS_TIMESTEP=0.04` / `SCORE_TIME_STEP=1/30` after settle.
 
 ## Install
 

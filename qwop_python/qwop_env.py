@@ -41,6 +41,9 @@ class QWOPEnv(gymnasium.Env):
         render_mode: None (headless) or "human" (Pygame window)
         hurdles_enabled: If set, override data.HURDLES_ENABLED (default off).
             Set True for browser-parity runs with the mid-track hurdle.
+        settle_spawn: If True (default), plant athlete at rest after reset
+            before the first action (sim-to-real; see QWOPGame.settle_spawn).
+        settle_max_steps: Max physics steps used by settle_spawn (default 20).
     """
 
     metadata = {"render_modes": ["human"]}
@@ -58,6 +61,8 @@ class QWOPEnv(gymnasium.Env):
         render_mode=None,
         show_observation_panel=False,
         hurdles_enabled=None,
+        settle_spawn=True,
+        settle_max_steps=20,
     ):
         super().__init__()
 
@@ -78,6 +83,8 @@ class QWOPEnv(gymnasium.Env):
         self.time_cost_mult = time_cost_mult
         self.distance_rew_mult = distance_rew_mult
         self.speed_rew_mult = speed_rew_mult
+        self.settle_spawn = bool(settle_spawn)
+        self.settle_max_steps = int(settle_max_steps)
 
         n_actions = self.action_mapper.num_actions
         self.observation_space = spaces.Box(
@@ -139,6 +146,11 @@ class QWOPEnv(gymnasium.Env):
 
         self.game.reset(seed=seed)
         self.game.start()
+
+        # Plant feet before first action so free-fall/contact does not diverge
+        # from browser QWOP across Box2D ports (sim-to-real).
+        if self.settle_spawn:
+            self.game.settle_spawn(max_steps=self.settle_max_steps)
 
         self._last_distance = 0.0
         self._last_time = 0.0

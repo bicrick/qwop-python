@@ -284,6 +284,79 @@ class QWOPGame:
             print("=" * 70)
             print()
     
+    def _max_abs_body_velocity(self):
+        """
+        Max absolute linear (x/y) or angular velocity across player bodies.
+
+        Used by settle_spawn to detect when the athlete has come to rest.
+        """
+        max_v = 0.0
+        for body in self.physics.bodies.values():
+            lv = body.linearVelocity
+            max_v = max(max_v, abs(lv[0]), abs(lv[1]), abs(body.angularVelocity))
+        return max_v
+
+    def settle_spawn(self, max_steps=20, velocity_threshold=0.08, min_steps=6):
+        """
+        Plant the athlete at rest after spawn (sim-to-real transfer).
+
+        Python Box2D and browser QWOP both spawn with feet floating. Free-fall
+        then first contact diverge across Box2D ports and cause early faceplants
+        on transfer. With keys up, run a few physics steps (same head torque as
+        normal update), early-exit when velocities are small, then zero velocities
+        and race clocks so the episode starts planted at t=0.
+
+        Does not change friction coefficients or the race PHYSICS_TIMESTEP /
+        SCORE_TIME_STEP drive — only a pre-episode settle.
+
+        Args:
+            max_steps: Cap on settle physics steps (default 20)
+            velocity_threshold: Early-exit when max abs body velocity is below
+                this (default 0.08)
+            min_steps: Minimum steps before early-exit is allowed (default 6)
+        """
+        # Keys up; allow physics to run (same as post-reset race start).
+        self.controls.reset()
+        self.pause = False
+        self.first_click = True
+
+        for step_i in range(max_steps):
+            # Same head stabilization torque as update() — critical for balance.
+            if not self.game_state.fallen:
+                head = self.physics.get_body("head")
+                if head is not None:
+                    torque = HEAD_TORQUE_FACTOR * (head.angle + HEAD_TORQUE_OFFSET)
+                    head.ApplyTorque(torque, True)
+
+            # Keys up → motors zeroed; still call apply for parity with update().
+            self.controls.apply()
+            self.physics.step()
+
+            # Keep track under the athlete while they drop onto the ground.
+            self._reposition_ground_segments()
+            self._update_camera()
+
+            if step_i + 1 >= min_steps and self._max_abs_body_velocity() < velocity_threshold:
+                break
+
+        # Hard stop residual motion from contact / solver noise.
+        for body in self.physics.bodies.values():
+            body.linearVelocity = (0.0, 0.0)
+            body.angularVelocity = 0.0
+
+        # Race clocks start at zero from the planted pose (not mid free-fall).
+        self.score_time = 0.0
+        self.game_state.score = 0.0
+        self.speed_array = []
+        self.average_speed = 0.0
+        self._update_camera()
+
+        if self.verbose:
+            print(
+                f"✓ Spawn settled after physics steps "
+                f"(max |v|={self._max_abs_body_velocity():.4f})"
+            )
+
     def reset(self, seed=None):
         """
         Reset the game to initial state.
