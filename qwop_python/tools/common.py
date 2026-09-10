@@ -55,6 +55,8 @@ ALLOWED_ENV_KWARGS = {
     "render_mode",
     "show_observation_panel",
     "hurdles_enabled",
+    "settle_spawn",
+    "settle_max_steps",
 }
 
 
