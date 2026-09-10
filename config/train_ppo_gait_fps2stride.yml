@@ -1,0 +1,61 @@
+# fps2 clone. ONLY extra change: ideal_half_s 0.50 -> 0.65.
+# Same frames_per_step 2. Longer beat, not a faster march.
+# WR long cycles are ~1.77s; we have only ever shortened this. No checkpoint.
+---
+seed: ~
+run_id: ~
+
+# From scratch. Do not set this to expert_dqnfd.zip or any checkpoint.
+model_load_file: ~
+
+out_dir_template: "data/PPO-kurodo-gait-{run_id}"
+log_tensorboard: true
+
+# Additional env steps for this run. Worker may override with --max-timesteps.
+total_timesteps: 1_000_000
+max_episode_steps: 2000
+n_checkpoints: 5
+
+# n2d-standard-8 worker; DummyVecEnv fallback if Subproc spawn fails.
+n_envs: 4
+
+learner_kwargs:
+  policy: "MlpPolicy"
+  use_sde: false
+  n_steps: 2048
+  batch_size: 64
+  n_epochs: 10
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_range: 0.2
+  normalize_advantage: true
+  ent_coef: 0.01
+  vf_coef: 0.5
+  max_grad_norm: 0.5
+
+learner_lr_schedule: "const_0.0003"
+
+env_kwargs:
+  __include__: "config/env.yml"
+  frames_per_step: 2
+  reduced_action_set: false
+
+env_wrappers:
+  - module: "qwop_python.wrappers.flex_gait_wrapper"
+    cls: "FlexibleGaitImitationWrapper"
+    kwargs:
+      hold_bonus: 0.04
+      soft_hold_scale: 0.55
+      switch_bonus: 0.12
+      upright_min_height: 1.15
+      ideal_half_s: 0.65
+      hold_full_s: 0.40
+      switch_lo_s: 0.28
+      switch_hi_s: 0.85
+      late_ok_s: 1.25
+      none_grace_s: 0.22
+      none_reset_s: 0.45
+      both_thigh_penalty: 0.03
+      same_dir_penalty: 0.02
+      same_dir_after_s: 0.55
+      scrape_weight: 0.12
