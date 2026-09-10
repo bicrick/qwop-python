@@ -19,12 +19,12 @@ This project reimplements the qwop-gym environment and tooling in pure Python, r
 
 ## World-record hunt (HTML5)
 
-Train in this Box2D env, then transfer to the real browser game to beat **45.530s HUD** (kurodo1916).
+Train in this Box2D env, then transfer to the real browser game to beat **45.530s HUD** (kurodo1916). **Browser keep: 45.167** — see [`docs/wr-hunt/WINNING_RECIPE.md`](docs/wr-hunt/WINNING_RECIPE.md).
 
 - Finish clock = landed `user/time` (game ended, jump landed, not fallen). `user/split_100m_time` is torso-at-100m only — not a finish / not a WR claim.
 - `settle_spawn` matches browser first-contact after reset (see `config/env.yml`, `doc/SETTLE_SPAWN.md`, PR #10).
 - How we built the loop: [`docs/wr-hunt/METHODOLOGY.md`](docs/wr-hunt/METHODOLOGY.md). Assets from the WR video: [`docs/wr-hunt/kurodo-extract/`](docs/wr-hunt/kurodo-extract/).
-- Strategy notes: [`docs/wr-hunt/STRATEGIES.md`](docs/wr-hunt/STRATEGIES.md), segment gap [`SEGMENT_GAP_POST_SETTLE.md`](docs/wr-hunt/SEGMENT_GAP_POST_SETTLE.md), Kurodo splits [`KURODO_WR_SPLITS.md`](docs/wr-hunt/KURODO_WR_SPLITS.md), farm orchestration [`ORCHESTRATION.md`](docs/wr-hunt/ORCHESTRATION.md).
+- Winning stack: [`docs/wr-hunt/WINNING_RECIPE.md`](docs/wr-hunt/WINNING_RECIPE.md). Strategy notes: [`docs/wr-hunt/STRATEGIES.md`](docs/wr-hunt/STRATEGIES.md), segment gap [`SEGMENT_GAP_POST_SETTLE.md`](docs/wr-hunt/SEGMENT_GAP_POST_SETTLE.md), Kurodo splits [`KURODO_WR_SPLITS.md`](docs/wr-hunt/KURODO_WR_SPLITS.md), farm orchestration [`ORCHESTRATION.md`](docs/wr-hunt/ORCHESTRATION.md).
 
 ### Training configs (WR hunt)
 

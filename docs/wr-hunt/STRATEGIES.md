@@ -3,7 +3,7 @@
 Goal: beat human HTML5 QWOP 100m WR **45.530s HUD** (kurodo1916) on the **official browser** game.
 Train in high-throughput `qwop-python` (Box2D), transfer via spectate / direct RL on the real page.
 
-**See also:** [METHODOLOGY.md](./METHODOLOGY.md) (how we built the loop) · [kurodo-extract/](./kurodo-extract/) (WR video key timelines / scripts) · [KURODO_WR_SPLITS.md](./KURODO_WR_SPLITS.md)
+**See also:** [WINNING_RECIPE.md](./WINNING_RECIPE.md) (browser keep **45.167**) · [METHODOLOGY.md](./METHODOLOGY.md) (how we built the loop) · [kurodo-extract/](./kurodo-extract/) (WR video key timelines / scripts) · [KURODO_WR_SPLITS.md](./KURODO_WR_SPLITS.md)
 
 ## Clocks (do not mix)
 
