@@ -1,0 +1,101 @@
+{
+  "video": "/workspace/qwop-wr-extract/kurodo.mp4",
+  "video_stream_duration_sec": 55.9,
+  "n_frames": 3354,
+  "sample_fps": 60.0,
+  "timeline_span_sec": 55.9,
+  "last_sample_t_sec": 55.88333,
+  "button_search_windows_xyxy": {
+    "Q": {
+      "x0": 50,
+      "x1": 165,
+      "y0": 80,
+      "y1": 210
+    },
+    "W": {
+      "x0": 168,
+      "x1": 295,
+      "y0": 80,
+      "y1": 210
+    },
+    "O": {
+      "x0": 1120,
+      "x1": 1252,
+      "y0": 80,
+      "y1": 210
+    },
+    "P": {
+      "x0": 1248,
+      "x1": 1362,
+      "y0": 88,
+      "y1": 210
+    }
+  },
+  "pressed_detection_rule": "Inside each fixed search window, take the tight bounding box of beige button-face pixels (R 175-235, G 155-220, B 135-200, R-B>=8). Pressed if min(width, height) <= 93. Unpressed buttons measure about 98-101 px; pressed buttons measure about 88-90 px and sit ~4 px down-right. Threshold sits in the empty gap.",
+  "press_sample_counts": {
+    "q": 1148,
+    "w": 1321,
+    "o": 558,
+    "p": 690
+  },
+  "release_sample_counts": {
+    "q": 2206,
+    "w": 2033,
+    "o": 2796,
+    "p": 2664
+  },
+  "press_event_counts_rising_edges": {
+    "q": 35,
+    "w": 28,
+    "o": 46,
+    "p": 58
+  },
+  "undetected_frames": {
+    "Q": 0,
+    "W": 0,
+    "O": 0,
+    "P": 0
+  },
+  "notes": "Buttons are the HTML5 QWOP Q/W (thighs, top-left of the game) and O/P (calves, top-right). Right side of the recording is LiveSplit and a keyboard cam; those keys were not used. Native 60 fps.",
+  "min_dim_stats": {
+    "q": {
+      "min": 88,
+      "max": 99,
+      "median": 98.0,
+      "n_le_93": 1148,
+      "n_between_94_and_95": 0,
+      "n_ge_96": 2206
+    },
+    "w": {
+      "min": 88,
+      "max": 100,
+      "median": 98.0,
+      "n_le_93": 1321,
+      "n_between_94_and_95": 0,
+      "n_ge_96": 2033
+    },
+    "o": {
+      "min": 88,
+      "max": 100,
+      "median": 98.0,
+      "n_le_93": 558,
+      "n_between_94_and_95": 0,
+      "n_ge_96": 2796
+    },
+    "p": {
+      "min": 88,
+      "max": 100,
+      "median": 98.0,
+      "n_le_93": 690,
+      "n_between_94_and_95": 0,
+      "n_ge_96": 2664
+    }
+  },
+  "preroll_note": "Frame 0 through about t=1s shows the runner frozen near 75.4-75.7 metres with LiveSplit at 0.00 and all four on-screen buttons unpressed. By t=2.0s the distance readout is 0.3 metres and the first button presses begin (O at 2.01667s, W at 2.05000s, Q at 2.81667s, P at 2.91667s). Last press samples: Q 47.40000s, W 46.50000s, O 47.18333s, P 46.45000s. That span is consistent with the 45.530s race starting near video t=2s; the timeline itself is video time, not in-game time, and continues through the results screen to 55.88333s.",
+  "spotcheck": {
+    "n_frames_reviewed": 13,
+    "obvious_misses": 0,
+    "dir": "/workspace/qwop-wr-extract/spotcheck",
+    "note": "Red box = predicted pressed, green = predicted up. Size classes never overlapped (pressed min-dim 88-90, unpressed 96-101, zero frames in 94-95)."
+  }
+}
