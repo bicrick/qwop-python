@@ -1,0 +1,64 @@
+---
+# PPO start-pace fine-tune (settle-aware) for sim→browser transfer.
+#
+# Continues from data/models/continue.zip with fps=2 gait stack + StartPaceWrapper.
+# After settle_spawn, ~80% of the Python→browser gap is 0–10 m; this run densifies
+# early progress and bonuses a fast 10 m split.
+#
+# Spectate promotion is browser-gated (do not auto-promote on sim-only metrics).
+#
+#   qwop-python train_ppo -c config/train_ppo_gait_fps2stride_startpace.yml
+
+seed: ~
+run_id: ~
+
+model_load_file: "data/models/continue.zip"
+
+out_dir_template: "data/PPO-gait-fps2stride-startpace-{run_id}"
+log_tensorboard: true
+
+total_timesteps: 8_000_000
+max_episode_steps: 5000
+n_checkpoints: 8
+n_envs: 4
+
+learner_kwargs:
+  policy: "MlpPolicy"
+  use_sde: false
+  sde_sample_freq: 4
+  n_steps: 2048
+  batch_size: 32
+  n_epochs: 10
+  gamma: 0.95
+  gae_lambda: 0.98
+  clip_range: 0.4
+  normalize_advantage: true
+  ent_coef: 0.01
+  vf_coef: 0.5
+  max_grad_norm: 3
+
+learner_lr_schedule: "const_0.0001"
+
+env_kwargs:
+  __include__: "config/env.yml"
+  frames_per_step: 2
+  speed_rew_mult: 0
+  settle_spawn: true
+  settle_max_steps: 20
+
+env_wrappers:
+  # Same soft_hold / ideal_half as earlysurv gait stack.
+  - module: "qwop_python.wrappers.flexible_gait_imitation_wrapper"
+    cls: "FlexibleGaitImitationWrapper"
+    kwargs:
+      soft_hold: 0.55
+      ideal_half: 0.65
+  - module: "qwop_python.wrappers.start_pace_wrapper"
+    cls: "StartPaceWrapper"
+    kwargs:
+      focus_m: 10
+      progress_mult: 4
+      split_ref_s: 12
+      split_bonus_scale: 1.5
+      early_fail_cost: 10
+      post_focus_progress_mult: 0
