@@ -24,6 +24,7 @@ from .data import (
     INITIAL_CAMERA_X,
     INITIAL_CAMERA_Y,
     SCORE_TIME_STEP,
+    PHYSICS_TIMESTEP,
     HURDLES_ENABLED,
 )
 
@@ -351,3 +352,94 @@ class QWOPGame:
         if self.verbose:
             print("✓ Game reset complete")
             print()
+
+    def settle_spawn(
+        self,
+        max_steps=20,
+        lin_vel_eps=0.45,
+        ang_vel_eps=1.5,
+        min_steps=8,
+        stable_needed=2,
+    ):
+        """
+        Null-input settle after spawn/reset for browser start-state parity.
+
+        Both PyBox2D and the HTML/JS Box2D QWOP spawn with feet slightly above
+        the track. Free-fall then first plant diverge (Python plants earlier with
+        a larger torso_vy). Running a short keys-up physics settle, then zeroing
+        velocities and clocks, starts the episode from a planted, near-rest pose
+        so RL / spectate transfer is not dominated by spawn free-fall mismatch.
+
+        This does not make engines identical; it only aligns the post-reset
+        start state (contacts stable, time/score zero, bodies at rest).
+
+        Args:
+            max_steps: Hard cap on settle updates (default 20; useful range 16–24)
+            lin_vel_eps: Max |vx|/|vy| on torso+feet to count as settled
+            ang_vel_eps: Max |ω| on torso+feet to count as settled
+            min_steps: Do not early-exit before this many updates (let feet plant)
+            stable_needed: Consecutive settled frames required before early exit
+
+        Returns:
+            Number of physics updates performed during settle
+        """
+        self.controls.reset()
+        self.pause = False
+        if not self.first_click:
+            self.first_click = True
+
+        stable = 0
+        steps_used = 0
+        for _ in range(max(0, int(max_steps))):
+            if self.game_state.game_ended or self.game_state.fallen:
+                break
+
+            self.update(PHYSICS_TIMESTEP)
+            # Suppress HUD clock / race time during settle so reset stays at t=0.
+            self.score_time = 0.0
+            steps_used += 1
+
+            settled = True
+            for name in ("torso", "leftFoot", "rightFoot"):
+                body = self.physics.get_body(name)
+                if body is None:
+                    settled = False
+                    break
+                vx, vy = body.linearVelocity
+                if abs(vx) > lin_vel_eps or abs(vy) > lin_vel_eps:
+                    settled = False
+                    break
+                if abs(body.angularVelocity) > ang_vel_eps:
+                    settled = False
+                    break
+
+            if settled and steps_used >= min_steps:
+                stable += 1
+                if stable >= stable_needed:
+                    break
+            else:
+                stable = 0
+
+        self._zero_body_velocities()
+        self.score_time = 0.0
+        self.game_state.score = 0.0
+        self.camera_x = INITIAL_CAMERA_X
+        self.camera_y = INITIAL_CAMERA_Y
+        # Snap camera to settled torso (reasonable post-settle framing).
+        self._update_camera()
+
+        if self.verbose:
+            print(f"✓ Spawn settled after {steps_used} step(s)")
+
+        return steps_used
+
+    def _zero_body_velocities(self):
+        """Zero linear/angular velocity on all player bodies (keep contacts)."""
+        for body in self.physics.bodies.values():
+            body.linearVelocity = (0.0, 0.0)
+            body.angularVelocity = 0.0
+            # Ensure bodies stay in the simulation after the velocity wipe.
+            try:
+                body.awake = True
+            except Exception:
+                pass

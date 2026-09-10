@@ -41,6 +41,10 @@ class QWOPEnv(gymnasium.Env):
         render_mode: None (headless) or "human" (Pygame window)
         hurdles_enabled: If set, override data.HURDLES_ENABLED (default off).
             Set True for browser-parity runs with the mid-track hurdle.
+        settle_spawn: If True (default), after reset run a short null-input
+            physics settle then zero velocities/clocks so the episode starts
+            planted and near rest (browser/spectate first-contact parity).
+        settle_max_steps: Max settle physics updates (default 20; ~16–24).
     """
 
     metadata = {"render_modes": ["human"]}
@@ -58,6 +62,8 @@ class QWOPEnv(gymnasium.Env):
         render_mode=None,
         show_observation_panel=False,
         hurdles_enabled=None,
+        settle_spawn=True,
+        settle_max_steps=20,
     ):
         super().__init__()
 
@@ -78,6 +84,8 @@ class QWOPEnv(gymnasium.Env):
         self.time_cost_mult = time_cost_mult
         self.distance_rew_mult = distance_rew_mult
         self.speed_rew_mult = speed_rew_mult
+        self.settle_spawn = bool(settle_spawn)
+        self.settle_max_steps = int(settle_max_steps)
 
         n_actions = self.action_mapper.num_actions
         self.observation_space = spaces.Box(
@@ -124,13 +132,17 @@ class QWOPEnv(gymnasium.Env):
         """
         Reset environment to initial state.
 
+        When ``settle_spawn`` is enabled (default), runs a short null-input
+        physics settle after game reset so feet are planted and velocities are
+        zeroed before the episode clock starts (browser first-contact parity).
+
         Args:
             seed: Optional seed for deterministic reset
             options: Additional options (unused)
 
         Returns:
             observation: 60-dim float32 array
-            info: Dictionary with metadata
+            info: Dictionary with metadata (time≈0, distance≈0 after settle)
         """
         super().reset(seed=seed)
 
@@ -139,6 +151,11 @@ class QWOPEnv(gymnasium.Env):
 
         self.game.reset(seed=seed)
         self.game.start()
+
+        # Plant feet / damp free-fall before the episode clock starts. See
+        # Game.settle_spawn and doc/SETTLE_SPAWN.md (browser rl_direct parity).
+        if self.settle_spawn:
+            self.game.settle_spawn(max_steps=self.settle_max_steps)
 
         self._last_distance = 0.0
         self._last_time = 0.0
