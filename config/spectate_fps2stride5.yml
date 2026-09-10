@@ -1,0 +1,17 @@
+---
+# Watch the fps2 stride continue (best landed finish ~44.469s HUD on stride5).
+# MUST match training: PPO, 16 actions, frames_per_step 2, one predict per env step.
+# The old gait-a spectate file is frames_per_step 4. Using that makes this policy
+# hold each press twice as long and fall immediately.
+fps: 30
+reset_delay: 1
+model_file: "data/models/fps2stride5-57600000-finish44.469.zip"
+model_mod: "stable_baselines3"
+model_cls: "PPO"
+steps_per_step: 1
+env_kwargs:
+  __include__: "config/env.yml"
+  frames_per_step: 2
+  render_mode: "human"
+  reduced_action_set: false
+env_wrappers: []

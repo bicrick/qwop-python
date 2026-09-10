@@ -1,0 +1,54 @@
+---
+# Fresh from-scratch iterate on the sub-60 flying cross-gait. No checkpoint.
+# frames_per_step 2 for tighter timing, full 16-action, speed-weighted.
+seed: ~
+run_id: ~
+model_load_file: ~
+reset_num_timesteps: false
+out_dir_template: "data/PPO-kurodo-gait-{run_id}"
+log_tensorboard: true
+total_timesteps: 8_000_000
+max_episode_steps: 2000
+n_checkpoints: 8
+n_envs: 8
+learner_kwargs:
+  policy: "MlpPolicy"
+  use_sde: false
+  n_steps: 1024
+  batch_size: 256
+  n_epochs: 8
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_range: 0.2
+  normalize_advantage: true
+  ent_coef: 0.012
+  vf_coef: 0.5
+  max_grad_norm: 0.5
+learner_lr_schedule: "const_0.0003"
+env_kwargs:
+  __include__: "config/env.yml"
+  frames_per_step: 2
+  reduced_action_set: false
+  speed_rew_mult: 0.6
+  time_cost_mult: 14
+  distance_rew_mult: 10.0
+
+env_wrappers:
+  - module: "qwop_python.wrappers.flex_gait_wrapper"
+    cls: "FlexibleGaitImitationWrapper"
+    kwargs:
+      hold_bonus: 0.02
+      soft_hold_scale: 0.55
+      switch_bonus: 0.08
+      upright_min_height: 1.15
+      ideal_half_s: 0.34
+      hold_full_s: 0.22
+      switch_lo_s: 0.16
+      switch_hi_s: 0.58
+      late_ok_s: 0.85
+      none_grace_s: 0.18
+      none_reset_s: 0.40
+      both_thigh_penalty: 0.03
+      same_dir_penalty: 0.02
+      same_dir_after_s: 0.45
+      scrape_weight: 0.08

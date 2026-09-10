@@ -17,6 +17,31 @@ This project reimplements the qwop-gym environment and tooling in pure Python, r
 * **Parallelization-ready** - `n_envs` uses `SubprocVecEnv` (DummyVecEnv fallback); see `doc/PARALLEL_SWEEPS.md` for multi-run CPU scouts.
 * **Same interface** - 60-dim observations, Discrete 9/16 actions, compatible reward model. Behavior matches qwop-gym.
 
+## World-record hunt (HTML5)
+
+Train in this Box2D env, then transfer to the real browser game to beat **45.530s HUD** (kurodo1916).
+
+- Finish clock = landed `user/time` (game ended, jump landed, not fallen). `user/split_100m_time` is torso-at-100m only — not a finish / not a WR claim.
+- `settle_spawn` matches browser first-contact after reset (see `config/env.yml`, `doc/SETTLE_SPAWN.md`, PR #10).
+- Strategy notes: [`docs/wr-hunt/STRATEGIES.md`](docs/wr-hunt/STRATEGIES.md), segment gap [`SEGMENT_GAP_POST_SETTLE.md`](docs/wr-hunt/SEGMENT_GAP_POST_SETTLE.md), Kurodo splits [`KURODO_WR_SPLITS.md`](docs/wr-hunt/KURODO_WR_SPLITS.md), farm orchestration [`ORCHESTRATION.md`](docs/wr-hunt/ORCHESTRATION.md).
+
+### Training configs (WR hunt)
+
+Farm-facing YAML under `config/` (examples):
+
+| Family | Examples |
+|--------|----------|
+| Flex gait / fps2stride | `train_ppo_gait_fps2.yml`, `train_ppo_gait_fps2stride.yml`, `*_cont`, `*_ent`, `*_softhold`, `*_grace` |
+| Start pace / early survival | `train_ppo_gait_fps2stride_startpace.yml`, `train_ppo_gait_fps2stride_earlysurv.yml` |
+| Kurodo-shaped | `train_ppo_kurodo_gait.yml`, `train_ppo_kurodo_fps2.yml`, `train_ppo_kurodo_speed.yml`, `train_ppo_kurodo_cadence.yml` |
+| Browser BC | `train_bc_browser_fps2.yml`, `train_ppo_browser_bc_finetune.yml` |
+| Scout / eval / spectate | `scout_qrdqn_*.yml`, `eval_wr.yml`, `spectate_fps2stride5.yml`, `spectate_kurodo_gait_a.yml` |
+
+```bash
+qwop-python -c config/train_ppo_gait_fps2stride_startpace.yml train_ppo
+qwop-python -c config/eval_wr.yml evaluate
+```
+
 ## Install
 
 Python 3.10+:
