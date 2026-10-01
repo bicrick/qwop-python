@@ -1,0 +1,33 @@
+---
+# Behavioral cloning from best official browser .rec finishes (fps=2, full 16 actions).
+# Demos land in data/recordings/ via startup (browser-best-recs.tgz).
+# Outputs: data/BC-{run_id}/model.zip + ppo_warmup.zip for PPO finetune.
+
+seed: ~
+run_id: ~
+
+recordings:
+  - "data/recordings/*.rec"
+
+out_dir_template: "data/BC-{run_id}"
+log_tensorboard: true
+
+n_epochs: 200
+
+save_ppo_warmup: true
+
+learner_kwargs:
+  batch_size: 64
+  minibatch_size: ~
+  ent_weight: 0.001
+  l2_weight: 0.0
+
+# Must match browser hunt + stride farm (not old BC fps=4 / Discrete9).
+env_kwargs:
+  __include__: "config/env.yml"
+  frames_per_step: 2
+  reduced_action_set: false
+  # Keep official clocks; do not raise speed_rew for WR path.
+  speed_rew_mult: 0.0
+
+env_wrappers: []

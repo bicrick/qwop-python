@@ -1,0 +1,378 @@
+{
+  "targets_hud_s": {
+    "human_wr": 45.53,
+    "liao_ai": 47.34,
+    "expert_baseline": 55.6
+  },
+  "best_finish_hud_s": 46.315,
+  "best_run_id": "gait1-fps2stride-20260908-2119",
+  "best_finish_note": "Trusted finished: fps2stride 46.315 @15.598M. Live unfinished best: fps2stride2 TB min 45.353@23.520M (~23.6M of ~24M; under human 45.530 in-sim). cont4~46.80 past 40M / half075b~46.57 / n8~47.08.",
+  "best_checkpoint": "gs://qwop-wr-training/artifacts/runs/gait1-fps2stride-20260908-2119/models/model.zip",
+  "untrusted_claims": [
+    {
+      "run_id": "scout-from-expert-20260908-002355",
+      "hud_s": 89.63,
+      "success_rate": 0.48,
+      "checkpoint": "LOST"
+    },
+    {
+      "run_id": "scout-from-expert-20260908-001701",
+      "hud_s": 105.09,
+      "success_rate": 0.12,
+      "checkpoint": "none",
+      "note": "bogus expert-timestep buffers"
+    },
+    {
+      "run_id": "kurodo-flex-gait-a8-20260908-0301",
+      "hud_s": 58.18,
+      "success_rate": 0.85,
+      "checkpoint": "KILLED",
+      "note": "HARD RULE: model_load from kurodo_gait_a_3m.zip \u2014 cancelled; HUD not trusted for WR path"
+    }
+  ],
+  "entries": [
+    {
+      "run_id": "gait1-fps2stride2-20260909-0146",
+      "best_hud": 45.169,
+      "source": "gcp",
+      "status": "running",
+      "config": "config/train_ppo_gait_fps2stride_cont.yml",
+      "note": "LIVE BEST unfinished; TB min 45.169@26.002M; under human 45.530 in-sim; ~26.5M past 24M; leave"
+    },
+    {
+      "run_id": "gait1-fps2stride-20260908-2119",
+      "best_hud": 46.315,
+      "source": "gcp",
+      "status": "done",
+      "config": "config/train_ppo_gait_fps2stride.yml",
+      "note": "TRUSTED FINISHED BEST; TB min 46.315@15.598M; continued as stride2",
+      "finished_at": "2026-09-09T01:35:00Z"
+    },
+    {
+      "run_id": "gait1-fps2half075b-20260909-0146",
+      "best_hud": 46.507,
+      "source": "gcp",
+      "status": "running",
+      "config": "config/train_ppo_gait_fps2half075_cont.yml",
+      "note": "+8M continue; TB min 46.507@25.9M past 24M; leave"
+    },
+    {
+      "run_id": "gait1-fps2stridegrace-20260909-0442",
+      "best_hud": 46.524,
+      "source": "gcp",
+      "status": "running",
+      "config": "config/train_ppo_gait_fps2stridegrace.yml",
+      "note": "n2 grace032 continue; TB min 46.524@16.2M early falling; leave"
+    },
+    {
+      "run_id": "gait1-fps2cont3-20260908-2258",
+      "best_hud": 46.672,
+      "source": "gcp",
+      "status": "done",
+      "config": "config/train_ppo_gait_fps2cont.yml",
+      "note": "TRUSTED BEST; finished +8M continue#3; TB min 46.672@31.933M; continued as cont4",
+      "finished_at": "2026-09-09T01:14:00Z"
+    },
+    {
+      "run_id": "gait1-fps2cont4-20260909-0114",
+      "best_hud": 46.695,
+      "source": "gcp",
+      "status": "running",
+      "config": "config/train_ppo_gait_fps2cont.yml",
+      "note": "+8M continue#4; TB min 46.695@44.0M past 40M; leave"
+    },
+    {
+      "run_id": "gait1-fps2cont-20260908-1641",
+      "best_hud": 46.983,
+      "source": "gcp",
+      "status": "done",
+      "config": "config/train_ppo_gait_fps2cont.yml",
+      "note": "TRUSTED BEST under Liao; +8M continue; TB min 46.983 @16.58M; continued as cont2"
+    },
+    {
+      "run_id": "gait1-fps2softhold-20260908-1736",
+      "best_hud": 46.983,
+      "source": "gcp",
+      "status": "done",
+      "config": "config/train_ppo_gait_fps2softhold.yml",
+      "note": "finished 16M tied trusted 46.983",
+      "finished_at": "2026-09-08T21:02:16Z"
+    },
+    {
+      "run_id": "gait1-fps2cont2-20260908-2021",
+      "best_hud": 46.998,
+      "source": "gcp",
+      "status": "done",
+      "config": "config/train_ppo_gait_fps2cont.yml",
+      "note": "finished/stopped at +8M cap; TB min 46.998 near-tie; continued as cont3",
+      "finished_at": "2026-09-08T22:58:08Z"
+    },
+    {
+      "run_id": "gait1-fps2bound-20260908-1812",
+      "best_hud": 46.998,
+      "source": "gcp",
+      "status": "done",
+      "config": "config/train_ppo_gait_fps2bound.yml",
+      "note": "finished 16M near-tie 46.998; did not beat trusted"
+    },
+    {
+      "run_id": "gait1-fps2n8-20260909-0046",
+      "best_hud": 47.035,
+      "source": "gcp",
+      "status": "done",
+      "config": "config/train_ppo_gait_fps2n8.yml",
+      "note": "DONE 16M; TB min 47.035; worse than trusted 46.315; n2 slot refilled as stridegrace"
+    },
+    {
+      "run_id": "gait1-fps2half075-20260908-2200",
+      "best_hud": 47.176,
+      "source": "gcp",
+      "status": "done",
+      "config": "config/train_ppo_gait_fps2half075.yml",
+      "note": "finished 16M TB min 47.176; continued as half075b",
+      "finished_at": "2026-09-09T01:30:00Z"
+    },
+    {
+      "run_id": "gait1-fps2-20260908-1454",
+      "best_hud": 48.928,
+      "source": "gcp",
+      "status": "done",
+      "finished_at": "2026-09-08T16:33:48Z",
+      "config": "config/train_ppo_gait_fps2.yml",
+      "note": "finished NEW TRUSTED BEST; continued"
+    },
+    {
+      "run_id": "gait1-continue16-20260908-1448",
+      "best_hud": 49.029,
+      "source": "gcp",
+      "status": "running",
+      "config": "config/train_ppo_gait_continue16.yml",
+      "note": "continue controlr; slight drop 49.13\u219249.03; leave"
+    },
+    {
+      "run_id": "gait1-controlr-20260908-0830",
+      "best_hud": 51.062,
+      "source": "gcp",
+      "status": "done",
+      "finished_at": "2026-09-08T10:40:02Z",
+      "config": "config/train_ppo_kurodo_gait.yml",
+      "note": "reseed of parent; new trusted best; hb 51.062 TB~51.179; models kept"
+    },
+    {
+      "run_id": "gait1-controlr2-20260908-0949",
+      "best_hud": 52.201,
+      "source": "gcp",
+      "status": "done",
+      "finished_at": "2026-09-08T12:52:17Z",
+      "config": "config/train_ppo_kurodo_gait.yml",
+      "note": "control reseed #2; finished worse than trusted 51.062; hb 52.201"
+    },
+    {
+      "run_id": "gait1-control-20260908-0512",
+      "best_hud": 52.215,
+      "source": "gcp",
+      "status": "done",
+      "finished_at": "2026-09-08T08:19:16Z",
+      "config": "config/train_ppo_kurodo_gait.yml",
+      "note": "from-scratch PPO parent gait-a; new trusted best"
+    },
+    {
+      "run_id": "gait1-controlr3-20260908-1126",
+      "best_hud": 52.503,
+      "source": "gcp",
+      "status": "done",
+      "finished_at": "2026-09-08T13:51:26Z",
+      "config": "config/train_ppo_kurodo_gait.yml",
+      "note": "control reseed #3; finished worse than trusted 51.062; hb/TB 52.503"
+    },
+    {
+      "run_id": "gait1-nenvs6-20260908-0811",
+      "best_hud": 52.608,
+      "source": "gcp",
+      "status": "done",
+      "finished_at": "2026-09-08T09:49:23Z",
+      "config": "config/train_ppo_gait_nenvs6.yml",
+      "note": "speed035+nenvs6; hb best at finish; final TB lost with VM; not better than trusted 52.215"
+    },
+    {
+      "run_id": "gait1-speed035r-20260908-0738",
+      "best_hud": 53.437,
+      "source": "gcp",
+      "status": "done",
+      "finished_at": "2026-09-08T09:45:52Z",
+      "config": "config/train_ppo_gait_speed035.yml",
+      "note": "reseed of speed035; finished worse than trusted control 52.215"
+    },
+    {
+      "run_id": "gait1-speed035-20260908-0512",
+      "best_hud": 53.765,
+      "source": "gcp",
+      "status": "done",
+      "finished_at": "2026-09-08T07:15:36Z",
+      "config": "config/train_ppo_gait_speed035.yml",
+      "note": "from-scratch PPO speed_rew 0.35; min split_100m HUD"
+    },
+    {
+      "run_id": "gait1-half045-20260908-1040",
+      "best_hud": 54.282,
+      "source": "gcp",
+      "status": "done",
+      "finished_at": "2026-09-08T12:52:17Z",
+      "config": "config/train_ppo_gait_half045.yml",
+      "note": "ideal_half_s 0.45; finished worse than trusted 51.062; hb 54.282"
+    },
+    {
+      "run_id": "gait1-half042-20260908-0512",
+      "best_hud": 54.77,
+      "source": "gcp",
+      "status": "done",
+      "finished_at": "2026-09-08T08:00:25Z",
+      "config": "config/train_ppo_gait_half042.yml",
+      "note": "from-scratch PPO ideal_half_s 0.42; finished worse than speed035 53.77"
+    },
+    {
+      "run_id": "gait1-ctrlnenv6-20260908-0942",
+      "best_hud": 128.486,
+      "source": "gcp",
+      "status": "killed_replace",
+      "finished_at": "2026-09-08T10:39:50Z",
+      "config": "config/train_ppo_gait_control_nenvs6.yml",
+      "note": "stuck ~128s @3.1M while sibling 51s; replaced by half045"
+    },
+    {
+      "run_id": "gait1-speed025-20260908-1040",
+      "best_hud": 132.518,
+      "source": "gcp",
+      "status": "killed_replace",
+      "finished_at": "2026-09-08T11:27:18Z",
+      "config": "config/train_ppo_gait_speed025.yml",
+      "note": "stuck ~132s @2.3M success~0.99 while sibling ~55.8; replaced by controlr3"
+    },
+    {
+      "run_id": "gait1-fps2grace-20260908-1624",
+      "best_hud": null,
+      "source": "gcp",
+      "status": "killed_replace",
+      "finished_at": "2026-09-08T17:37:59Z",
+      "config": "config/train_ppo_gait_fps2grace.yml",
+      "note": "stuck success=0 @4.5M; replaced by fps2softhold"
+    },
+    {
+      "run_id": "kurodo-flex-gait-a-20260908-021822",
+      "hud_s": 57.9,
+      "success_rate": 0.77,
+      "steps": 4988928,
+      "ep_rew": 1056.12,
+      "trusted": true,
+      "checkpoint": "gs://qwop-wr-training/artifacts/runs/kurodo-flex-gait-a-20260908-021822/models/model.zip",
+      "finished_at": "2026-09-08T03:16:48Z"
+    }
+  ],
+  "local_scouts": [
+    {
+      "run_id": "scout-phaseA-s1",
+      "status": "running",
+      "success_rate": 0.0,
+      "steps": 74356,
+      "ep_rew_mean": 29.99
+    },
+    {
+      "run_id": "scout-fps1-s2",
+      "status": "running",
+      "success_rate": 0.0,
+      "steps": 75143,
+      "ep_rew_mean": -31.7
+    },
+    {
+      "run_id": "scout-fps2-s3",
+      "status": "running",
+      "success_rate": 0.0,
+      "steps": 72778,
+      "ep_rew_mean": -25.3
+    },
+    {
+      "run_id": "local-ppo-bc-mymwjqvk",
+      "status": "running",
+      "steps": 295168,
+      "success_rate": 0.01,
+      "split_100m_time": 81.27,
+      "note": "BC\u2192PPO warmup path (allowed); no trusted finish yet"
+    }
+  ],
+  "gcp_runs": [
+    {
+      "run_id": "kurodo-gait-a-20260908-033842",
+      "status": "booting",
+      "zone": "us-central1-a",
+      "config": "config/train_ppo_kurodo_gait.yml",
+      "model_load": null
+    },
+    {
+      "run_id": "kurodo-gait-n8-20260908-033842",
+      "status": "booting",
+      "zone": "us-central1-b",
+      "config": "config/train_ppo_kurodo_gait_n8.yml",
+      "model_load": null,
+      "note": "n8 neutralized to from-scratch"
+    },
+    {
+      "run_id": "kurodo-gait-c-20260908-033842",
+      "status": "booting",
+      "zone": "us-central1-c",
+      "config": "config/train_ppo_kurodo_gait.yml",
+      "model_load": null
+    }
+  ],
+  "incidents": [
+    {
+      "at": "2026-09-08T00:40:42Z",
+      "kind": "lost_best_finetune_checkpoint",
+      "detail": "002355 killed mid-climb no artifacts"
+    },
+    {
+      "at": "2026-09-08T00:59:08Z",
+      "kind": "logcallback_speed_mps_keyerror",
+      "detail": "patched in GCS tarball; CA PR9"
+    },
+    {
+      "at": "2026-09-08T01:03:12Z",
+      "kind": "orchestrator_race",
+      "detail": "overlapping from-expert creates/deletes"
+    },
+    {
+      "at": "2026-09-08T01:10:58Z",
+      "kind": "hard_rule_enforced",
+      "detail": "cancelled pending scout-from-expert-20260908-0104; from-expert banned"
+    },
+    {
+      "at": "2026-09-08T03:26:00Z",
+      "kind": "hard_rule_enforced",
+      "detail": "killed a8 model_load from kurodo_gait_a_3m.zip; neutralized n8 in tarball"
+    },
+    {
+      "at": "2026-09-08T03:33:00Z",
+      "kind": "orchestrator_race",
+      "detail": "parallel sub45 trio (missing tarball configs) + over-cap create; fleet emptied; sub45 failed train_nonzero_exit"
+    },
+    {
+      "at": "2026-09-08T03:41:12Z",
+      "kind": "fleet_refilled",
+      "detail": "3x from-scratch kurodo gait 8M launched after empty fleet"
+    }
+  ],
+  "updated_at": "2026-09-09T04:48:00Z",
+  "cycle_note": "2026-09-08T12:52:17Z: controlr2 done 52.201; half045 done 54.282; left controlr3~61.5 falling; launched controlr4 + speed030; trusted 51.062; quiet.",
+  "best_hud": 51.062,
+  "trusted_best_hud": 50.273,
+  "trusted_best_run": "gait1-continue16-20260908-1448",
+  "prior_finished_best_hud": 51.062,
+  "prior_finished_best_run": "gait1-controlr-20260908-0830",
+  "live_best_hud_s": 47.73,
+  "live_best_run_id": "gait1-fps2cont-20260908-1641",
+  "trusted_finished_best_hud": 46.315,
+  "trusted_finished_run": "gait1-fps2stride-20260908-2119",
+  "live_unfinished_best_hud": 45.169,
+  "live_unfinished_run": "gait1-fps2stride2-20260909-0146",
+  "human_wr_hud": 45.53,
+  "notes": "Trusted finished best 46.315 (stride @16M). Live unfinished stride2 TB min 45.169@26.0M under human 45.530 in-sim; cont4~46.70 / half075b~46.51 / stridegrace~46.52."
+}

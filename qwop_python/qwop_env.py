@@ -48,6 +48,8 @@ class QWOPEnv(gymnasium.Env):
     def __init__(
         self,
         frames_per_step=1,
+        settle_spawn=True,
+        settle_max_steps=20,
         reduced_action_set=False,
         failure_cost=10.0,
         success_reward=50.0,
@@ -73,6 +75,8 @@ class QWOPEnv(gymnasium.Env):
         self.action_mapper = ActionMapper(reduced_action_set=reduced_action_set)
 
         self.frames_per_step = frames_per_step
+        self.settle_spawn = bool(settle_spawn)
+        self.settle_max_steps = int(settle_max_steps)
         self.failure_cost = failure_cost
         self.success_reward = success_reward
         self.time_cost_mult = time_cost_mult
@@ -139,6 +143,8 @@ class QWOPEnv(gymnasium.Env):
 
         self.game.reset(seed=seed)
         self.game.start()
+        if self.settle_spawn:
+            self.game.settle_spawn(max_steps=self.settle_max_steps)
 
         self._last_distance = 0.0
         self._last_time = 0.0

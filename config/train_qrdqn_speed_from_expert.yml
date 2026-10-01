@@ -1,0 +1,58 @@
+---
+# Safer speed fine-tune from expert_dqnfd (avoid reward-hack collapse).
+seed: 42
+run_id: speed-safe-001
+model_load_file: "data/saved_models/expert_dqnfd.zip"
+
+out_dir_template: "data/QRDQN-WR-Speed-{run_id}"
+log_tensorboard: true
+
+total_timesteps: 2_000_000
+max_episode_steps: 2000
+n_checkpoints: 40
+n_envs: 1
+
+learner_kwargs:
+  policy: "MlpPolicy"
+  buffer_size: 100000
+  learning_starts: 5000
+  batch_size: 64
+  tau: 1.0
+  gamma: 0.997
+  train_freq: 4
+  gradient_steps: 1
+  target_update_interval: 512
+  exploration_fraction: 0.3
+  exploration_initial_eps: 0.02
+  exploration_final_eps: 0.01
+
+learner_lr_schedule: "const_0.0001"
+
+env_kwargs:
+  __include__: "config/env.yml"
+  frames_per_step: 1
+  reduced_action_set: true
+  success_reward: 100.0
+  failure_cost: 20.0
+  time_cost_mult: 15.0
+  distance_rew_mult: 10.0
+  speed_rew_mult: 0.5
+
+env_wrappers:
+  - module: "qwop_python.wrappers.anti_scrape_wrapper"
+    cls: "AntiScrapeCurriculumWrapper"
+    kwargs:
+      velocity_weight: 0.3
+      height_weight: 0.15
+      height_floor: 1.15
+      scrape_weight: 0.5
+      scrape_torso_max_height: 0.95
+      scrape_flexion_min: 0.45
+      knee_flex_weight: 0.02
+      knee_extension_bonus_weight: 0.0
+      anneal_penalties: false
+  - module: "qwop_python.wrappers.stuck_detection_wrapper"
+    cls: "StuckDetectionWrapper"
+    kwargs:
+      patience_steps: 120
+      min_speed_mps: 0.1

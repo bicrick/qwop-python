@@ -14,7 +14,7 @@ model_mod: "sb3_contrib"
 model_cls: "QRDQN"
 
 # How many headless episodes to attempt
-n_episodes: 30
+n_episodes: 40
 max_episode_steps: 2000
 deterministic: true
 
@@ -33,4 +33,4 @@ env_wrappers:
       overwrite: true
       # Keep upright / far demos; loosen for short scouts.
       max_time: 120
-      min_distance: 5
+      min_distance: 80

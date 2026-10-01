@@ -13,6 +13,7 @@ from .anti_scrape_wrapper import AntiScrapeCurriculumWrapper
 from .verbose_wrapper import VerboseWrapper
 from .record_wrapper import RecordWrapper
 from .stuck_detection_wrapper import StuckDetectionWrapper
+from .flex_gait_wrapper import FlexibleGaitImitationWrapper
 
 __all__ = [
     "RewardShapingWrapper",
@@ -22,4 +23,5 @@ __all__ = [
     "VerboseWrapper",
     "RecordWrapper",
     "StuckDetectionWrapper",
+    "FlexibleGaitImitationWrapper",
 ]

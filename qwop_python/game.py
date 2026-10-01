@@ -351,3 +351,40 @@ class QWOPGame:
         if self.verbose:
             print("✓ Game reset complete")
             print()
+
+    def settle_spawn(self, max_steps=20, vel_eps=0.08):
+        """Drop onto the track, then freeze — browser start parity.
+
+        Both Python and real QWOP spawn with feet floating above the ground.
+        Free-fall then first contact diverge across Box2D ports and cause early
+        faceplants on transfer. Settle with keys up, zero velocities, and zero
+        the HUD clock/score so the episode starts planted at rest.
+        """
+        self.controls.reset()
+        for i in range(int(max_steps)):
+            if not self.game_state.fallen:
+                head = self.physics.get_body('head')
+                if head is not None:
+                    torque = HEAD_TORQUE_FACTOR * (head.angle + HEAD_TORQUE_OFFSET)
+                    head.ApplyTorque(torque, True)
+            self.controls.apply()
+            if self.first_click and not self.pause:
+                self.physics.step()
+            # Score from torso (same formula as update) but we will zero clocks after.
+            torso = self.physics.get_body('torso')
+            if torso is not None and not self.game_state.jump_landed:
+                self.game_state.score = round(torso.worldCenter[0]) / 10
+            max_abs = 0.0
+            for body in self.physics.bodies.values():
+                vx, vy = body.linearVelocity
+                max_abs = max(max_abs, abs(float(vx)), abs(float(vy)), abs(float(body.angularVelocity)))
+            if i >= 6 and max_abs < float(vel_eps):
+                break
+        for body in self.physics.bodies.values():
+            body.linearVelocity = (0.0, 0.0)
+            body.angularVelocity = 0.0
+        self.score_time = 0.0
+        self.game_state.score = 0.0
+        self.camera_x = INITIAL_CAMERA_X
+        self.camera_y = INITIAL_CAMERA_Y
+

@@ -1,0 +1,44 @@
+---
+# PPO finetune from BC warmup (demo-bootstrap mymwjqvk).
+# HARD RULE: load ppo_warmup.zip only — never expert_dqnfd.zip.
+# Env must match BC/recordings: frames_per_step=4, reduced_action_set=true (Discrete 9).
+
+seed: ~
+run_id: ~
+
+model_load_file: "data/BC-mymwjqvk/ppo_warmup.zip"
+
+out_dir_template: "data/PPO-bc-mymwjqvk-{run_id}"
+log_tensorboard: true
+
+# Multi-million finetune from BC policy
+total_timesteps: 5_000_000
+max_episode_steps: 5000
+n_checkpoints: 10
+# Keep modest: 3 local QRDQN scouts already running on this box
+n_envs: 2
+
+learner_kwargs:
+  policy: "MlpPolicy"
+  use_sde: false
+  sde_sample_freq: 4
+  n_steps: 2048
+  batch_size: 64
+  n_epochs: 10
+  gamma: 0.95
+  gae_lambda: 0.98
+  clip_range: 0.2
+  normalize_advantage: true
+  ent_coef: 0.001
+  vf_coef: 0.5
+  max_grad_norm: 3
+
+# Gentle LR for finetune from BC
+learner_lr_schedule: "const_0.0001"
+
+env_kwargs:
+  __include__: "config/env.yml"
+  frames_per_step: 4
+  reduced_action_set: true
+
+env_wrappers: []
